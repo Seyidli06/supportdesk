@@ -8,16 +8,34 @@ import com.adil.supportdesk.application.ticket.create.CreateTicketUseCase;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.Clock;
+
 @Configuration
 public class TicketUseCaseConfig {
 
     @Bean
-    public CreateTicketUseCase createTicketUseCase(TicketRepository ticketRepository) {
-        return new CreateTicketApplicationService(ticketRepository);
+    public Clock clock() {
+        return Clock.systemUTC();
     }
 
     @Bean
-    public ChangeTicketStatusUseCase changeTicketStatusUseCase(TicketRepository ticketRepository) {
-        return new ChangeTicketStatusApplicationService(ticketRepository);
+    public CreateTicketUseCase createTicketUseCase(
+            TicketRepository ticketRepository,
+            Clock clock
+    ) {
+        return new CreateTicketApplicationService(
+                ticketRepository,
+                clock
+        );
+    }
+
+    @Bean
+    public ChangeTicketStatusUseCase
+    changeTicketStatusUseCase(
+            TicketRepository ticketRepository
+    ) {
+        return new ChangeTicketStatusApplicationService(
+                ticketRepository
+        );
     }
 }

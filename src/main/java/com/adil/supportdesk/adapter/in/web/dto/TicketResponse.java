@@ -8,16 +8,33 @@ public record TicketResponse(
         String id,
         String title,
         String description,
+        String priority,
         String status,
-        Instant createdAt
+        String requesterId,
+        String assignedAgentId,
+        Instant createdAt,
+        Instant updatedAt,
+        Instant resolvedAt,
+        Instant closedAt,
+        Instant slaDueAt
 ) {
-    public static TicketResponse fromDomain(TicketResult result) {
+
+    public static TicketResponse fromResult(
+            TicketResult result
+    ) {
         return new TicketResponse(
                 result.id(),
                 result.title(),
                 result.description(),
+                result.priority().name(),
                 result.status().name(),
-                result.createdAt()
+                result.requesterId(),
+                result.assignedAgentId(),
+                result.createdAt(),
+                result.updatedAt(),
+                result.resolvedAt(),
+                result.closedAt(),
+                result.slaDueAt()
         );
     }
 }
