@@ -1,5 +1,11 @@
 package com.adil.supportdesk.adapter.in.web.common;
 
+import com.adil.supportdesk.application.security.UnauthorizedAccessException;
+import com.adil.supportdesk.application.ticket.assign.InvalidAssigneeException;
+import com.adil.supportdesk.application.user.UserNotFoundException;
+import com.adil.supportdesk.domain.ticket.exception.DomainException;
+import com.adil.supportdesk.domain.ticket.exception.InvalidStatusTransitionException;
+import com.adil.supportdesk.domain.ticket.exception.TicketClosedException;
 import com.adil.supportdesk.domain.ticket.exception.TicketNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -12,20 +18,55 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.adil.supportdesk.domain.ticket.exception.DomainException;
-import com.adil.supportdesk.domain.ticket.exception.InvalidStatusTransitionException;
-import com.adil.supportdesk.domain.ticket.exception.TicketClosedException;
-
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(TicketNotFoundException.class)
-    public ProblemDetail handleTicketNotFound(TicketNotFoundException ex) {
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
-        problemDetail.setTitle("Ticket Not Found");
-        problemDetail.setType(URI.create("https://supportdesk.com/errors/not-found"));
-        problemDetail.setProperty("timestamp", Instant.now());
-        return problemDetail;
+    public ProblemDetail handleTicketNotFound(
+            TicketNotFoundException exception
+    ) {
+        return createProblem(
+                HttpStatus.NOT_FOUND,
+                "Ticket Not Found",
+                exception.getMessage(),
+                "ticket-not-found"
+        );
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ProblemDetail handleUserNotFound(
+            UserNotFoundException exception
+    ) {
+        return createProblem(
+                HttpStatus.NOT_FOUND,
+                "User Not Found",
+                exception.getMessage(),
+                "user-not-found"
+        );
+    }
+
+    @ExceptionHandler(UnauthorizedAccessException.class)
+    public ProblemDetail handleUnauthorizedAccess(
+            UnauthorizedAccessException exception
+    ) {
+        return createProblem(
+                HttpStatus.FORBIDDEN,
+                "Access Denied",
+                exception.getMessage(),
+                "access-denied"
+        );
+    }
+
+    @ExceptionHandler(InvalidAssigneeException.class)
+    public ProblemDetail handleInvalidAssignee(
+            InvalidAssigneeException exception
+    ) {
+        return createProblem(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                "Invalid Assignee",
+                exception.getMessage(),
+                "invalid-assignee"
+        );
     }
 
     @ExceptionHandler({
@@ -35,18 +76,54 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleDomainViolation(
             DomainException exception
     ) {
-        ProblemDetail problemDetail =
-                ProblemDetail.forStatusAndDetail(
-                        HttpStatus.UNPROCESSABLE_ENTITY,
-                        exception.getMessage()
+        return createProblem(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                "Domain Rule Violation",
+                exception.getMessage(),
+                "domain-violation"
+        );
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ProblemDetail handleIllegalArgument(
+            IllegalArgumentException exception
+    ) {
+        return createProblem(
+                HttpStatus.BAD_REQUEST,
+                "Invalid Request",
+                exception.getMessage(),
+                "invalid-request"
+        );
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ProblemDetail handleValidationExceptions(
+            MethodArgumentNotValidException exception
+    ) {
+        Map<String, String> errors = new HashMap<>();
+
+        exception.getBindingResult()
+                .getFieldErrors()
+                .forEach(error ->
+                        errors.put(
+                                error.getField(),
+                                error.getDefaultMessage()
+                        )
                 );
 
-        problemDetail.setTitle("Domain Rule Violation");
+        ProblemDetail problemDetail =
+                ProblemDetail.forStatusAndDetail(
+                        HttpStatus.BAD_REQUEST,
+                        "Validation failed"
+                );
+
+        problemDetail.setTitle("Bad Request");
         problemDetail.setType(
                 URI.create(
-                        "https://supportdesk.com/errors/domain-violation"
+                        "https://supportdesk.com/errors/validation"
                 )
         );
+        problemDetail.setProperty("errors", errors);
         problemDetail.setProperty(
                 "timestamp",
                 Instant.now()
@@ -55,17 +132,30 @@ public class GlobalExceptionHandler {
         return problemDetail;
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ProblemDetail handleValidationExceptions(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getFieldErrors().forEach(error ->
-                errors.put(error.getField(), error.getDefaultMessage())
+    private ProblemDetail createProblem(
+            HttpStatus status,
+            String title,
+            String detail,
+            String errorType
+    ) {
+        ProblemDetail problemDetail =
+                ProblemDetail.forStatusAndDetail(
+                        status,
+                        detail
+                );
+
+        problemDetail.setTitle(title);
+        problemDetail.setType(
+                URI.create(
+                        "https://supportdesk.com/errors/"
+                                + errorType
+                )
+        );
+        problemDetail.setProperty(
+                "timestamp",
+                Instant.now()
         );
 
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Validation failed");
-        problemDetail.setTitle("Bad Request");
-        problemDetail.setProperty("errors", errors);
-        problemDetail.setProperty("timestamp", Instant.now());
         return problemDetail;
     }
 }

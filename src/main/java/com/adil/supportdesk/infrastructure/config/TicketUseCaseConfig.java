@@ -1,6 +1,9 @@
 package com.adil.supportdesk.infrastructure.config;
 
 import com.adil.supportdesk.application.port.out.TicketRepository;
+import com.adil.supportdesk.application.port.out.UserDirectory;
+import com.adil.supportdesk.application.ticket.assign.AssignTicketApplicationService;
+import com.adil.supportdesk.application.ticket.assign.AssignTicketUseCase;
 import com.adil.supportdesk.application.ticket.changestatus.ChangeTicketStatusApplicationService;
 import com.adil.supportdesk.application.ticket.changestatus.ChangeTicketStatusUseCase;
 import com.adil.supportdesk.application.ticket.create.CreateTicketApplicationService;
@@ -25,6 +28,19 @@ public class TicketUseCaseConfig {
     ) {
         return new CreateTicketApplicationService(
                 ticketRepository,
+                clock
+        );
+    }
+
+    @Bean
+    public AssignTicketUseCase assignTicketUseCase(
+            TicketRepository ticketRepository,
+            UserDirectory userDirectory,
+            Clock clock
+    ) {
+        return new AssignTicketApplicationService(
+                ticketRepository,
+                userDirectory,
                 clock
         );
     }

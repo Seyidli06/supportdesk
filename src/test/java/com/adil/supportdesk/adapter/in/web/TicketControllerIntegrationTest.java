@@ -27,8 +27,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.adil.supportdesk.application.ticket.assign.AssignTicketUseCase;
+
+
+
 @WebMvcTest(TicketController.class)
 class TicketControllerIntegrationTest {
+
+    @MockBean
+    private AssignTicketUseCase assignTicketUseCase;
 
     private static final String USER_ID =
             "11111111-1111-1111-1111-111111111111";
