@@ -2,15 +2,40 @@ package com.adil.supportdesk.domain.ticket.policy;
 
 import com.adil.supportdesk.domain.ticket.model.TicketStatus;
 
-public class TicketStatusPolicy {
+import java.util.Objects;
 
-    public static boolean canTransition(TicketStatus current, TicketStatus target) {
-        if (current == target) return true;
+public final class TicketStatusPolicy {
+
+    private TicketStatusPolicy() {
+    }
+
+    public static boolean canTransition(
+            TicketStatus current,
+            TicketStatus target
+    ) {
+        Objects.requireNonNull(current, "Current status cannot be null");
+        Objects.requireNonNull(target, "Target status cannot be null");
+
+        if (current == target) {
+            return true;
+        }
 
         return switch (current) {
-            case OPEN -> target == TicketStatus.IN_PROGRESS || target == TicketStatus.CLOSED;
-            case IN_PROGRESS -> target == TicketStatus.RESOLVED || target == TicketStatus.CLOSED;
-            case RESOLVED -> target == TicketStatus.CLOSED || target == TicketStatus.IN_PROGRESS;
+            case OPEN ->
+                    target == TicketStatus.IN_PROGRESS;
+
+            case IN_PROGRESS ->
+                    target == TicketStatus.WAITING_CUSTOMER
+                            || target == TicketStatus.RESOLVED;
+
+            case WAITING_CUSTOMER ->
+                    target == TicketStatus.IN_PROGRESS
+                            || target == TicketStatus.RESOLVED;
+
+            case RESOLVED ->
+                    target == TicketStatus.IN_PROGRESS
+                            || target == TicketStatus.CLOSED;
+
             case CLOSED -> false;
         };
     }

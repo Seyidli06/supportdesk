@@ -1,6 +1,5 @@
 package com.adil.supportdesk.adapter.in.web.common;
 
-import com.adil.supportdesk.domain.ticket.exception.InvalidTicketStatusException;
 import com.adil.supportdesk.domain.ticket.exception.TicketNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -12,6 +11,10 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+
+import com.adil.supportdesk.domain.ticket.exception.DomainException;
+import com.adil.supportdesk.domain.ticket.exception.InvalidStatusTransitionException;
+import com.adil.supportdesk.domain.ticket.exception.TicketClosedException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -25,12 +28,30 @@ public class GlobalExceptionHandler {
         return problemDetail;
     }
 
-    @ExceptionHandler(InvalidTicketStatusException.class)
-    public ProblemDetail handleInvalidStatus(InvalidTicketStatusException ex) {
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+    @ExceptionHandler({
+            InvalidStatusTransitionException.class,
+            TicketClosedException.class
+    })
+    public ProblemDetail handleDomainViolation(
+            DomainException exception
+    ) {
+        ProblemDetail problemDetail =
+                ProblemDetail.forStatusAndDetail(
+                        HttpStatus.UNPROCESSABLE_ENTITY,
+                        exception.getMessage()
+                );
+
         problemDetail.setTitle("Domain Rule Violation");
-        problemDetail.setType(URI.create("https://supportdesk.com/errors/domain-violation"));
-        problemDetail.setProperty("timestamp", Instant.now());
+        problemDetail.setType(
+                URI.create(
+                        "https://supportdesk.com/errors/domain-violation"
+                )
+        );
+        problemDetail.setProperty(
+                "timestamp",
+                Instant.now()
+        );
+
         return problemDetail;
     }
 

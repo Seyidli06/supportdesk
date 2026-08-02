@@ -9,18 +9,24 @@ spring:
     driver-class-name: org.postgresql.Driver
 
   jpa:
+    open-in-view: false
+
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:validate}
+      ddl-auto: validate
+
     show-sql: ${JPA_SHOW_SQL:true}
+
     properties:
       hibernate:
         format_sql: ${JPA_FORMAT_SQL:true}
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
 
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
-    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-on-migrate: false
     locations: classpath:db/migration
+    validate-on-migrate: true
 
 server:
   port: ${SERVER_PORT:8080}
