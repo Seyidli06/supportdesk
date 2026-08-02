@@ -1,5 +1,7 @@
 package com.adil.supportdesk.adapter.in.web.common;
 
+import com.adil.supportdesk.application.auth.EmailAlreadyExistsException;
+import com.adil.supportdesk.application.auth.InvalidCredentialsException;
 import com.adil.supportdesk.application.security.UnauthorizedAccessException;
 import com.adil.supportdesk.application.ticket.assign.InvalidAssigneeException;
 import com.adil.supportdesk.application.user.UserNotFoundException;
@@ -158,4 +160,29 @@ public class GlobalExceptionHandler {
 
         return problemDetail;
     }
+    @ExceptionHandler(EmailAlreadyExistsException.class)
+    public ProblemDetail handleEmailAlreadyExists(
+            EmailAlreadyExistsException exception
+    ) {
+        return createProblem(
+                HttpStatus.CONFLICT,
+                "Email Already Exists",
+                exception.getMessage(),
+                "email-already-exists"
+        );
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ProblemDetail handleInvalidCredentials(
+            InvalidCredentialsException exception
+    ) {
+        return createProblem(
+                HttpStatus.UNAUTHORIZED,
+                "Invalid Credentials",
+                exception.getMessage(),
+                "invalid-credentials"
+        );
+    }
+
+
 }
