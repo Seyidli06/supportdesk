@@ -61,10 +61,12 @@ public class TicketUseCaseConfig {
     @Bean
     public ChangeTicketStatusUseCase
     changeTicketStatusUseCase(
-            TicketRepository ticketRepository
+            TicketRepository ticketRepository,
+            Clock clock
     ) {
         return new ChangeTicketStatusApplicationService(
-                ticketRepository
+                ticketRepository,
+                clock
         );
     }
 }

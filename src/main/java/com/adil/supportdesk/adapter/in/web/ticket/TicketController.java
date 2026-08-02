@@ -2,18 +2,22 @@ package com.adil.supportdesk.adapter.in.web.ticket;
 
 import com.adil.supportdesk.adapter.in.web.dto.AddCommentRequest;
 import com.adil.supportdesk.adapter.in.web.dto.AssignTicketRequest;
+import com.adil.supportdesk.adapter.in.web.dto.ChangeTicketStatusRequest;
 import com.adil.supportdesk.adapter.in.web.dto.CreateTicketRequest;
 import com.adil.supportdesk.adapter.in.web.dto.TicketResponse;
 import com.adil.supportdesk.application.security.UserContext;
 import com.adil.supportdesk.application.security.UserRole;
 import com.adil.supportdesk.application.ticket.assign.AssignTicketCommand;
 import com.adil.supportdesk.application.ticket.assign.AssignTicketUseCase;
+import com.adil.supportdesk.application.ticket.changestatus.ChangeTicketStatusCommand;
+import com.adil.supportdesk.application.ticket.changestatus.ChangeTicketStatusUseCase;
 import com.adil.supportdesk.application.ticket.comment.AddCommentCommand;
 import com.adil.supportdesk.application.ticket.comment.AddCommentUseCase;
 import com.adil.supportdesk.application.ticket.create.CreateTicketCommand;
 import com.adil.supportdesk.application.ticket.create.CreateTicketUseCase;
 import com.adil.supportdesk.application.ticket.get.TicketResult;
 import com.adil.supportdesk.domain.ticket.model.TicketPriority;
+import com.adil.supportdesk.domain.ticket.model.TicketStatus;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,15 +41,20 @@ public class TicketController {
     private final CreateTicketUseCase createTicketUseCase;
     private final AssignTicketUseCase assignTicketUseCase;
     private final AddCommentUseCase addCommentUseCase;
+    private final ChangeTicketStatusUseCase
+            changeTicketStatusUseCase;
 
     public TicketController(
             CreateTicketUseCase createTicketUseCase,
             AssignTicketUseCase assignTicketUseCase,
-            AddCommentUseCase addCommentUseCase
+            AddCommentUseCase addCommentUseCase,
+            ChangeTicketStatusUseCase changeTicketStatusUseCase
     ) {
         this.createTicketUseCase = createTicketUseCase;
         this.assignTicketUseCase = assignTicketUseCase;
         this.addCommentUseCase = addCommentUseCase;
+        this.changeTicketStatusUseCase =
+                changeTicketStatusUseCase;
     }
 
     @PostMapping
@@ -118,6 +127,33 @@ public class TicketController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(TicketResponse.fromResult(result));
+    }
+
+    @PatchMapping("/{ticketId}/status")
+    public ResponseEntity<TicketResponse> changeStatus(
+            @PathVariable String ticketId,
+            @Valid @RequestBody
+            ChangeTicketStatusRequest request,
+            Authentication authentication
+    ) {
+        ChangeTicketStatusCommand command =
+                new ChangeTicketStatusCommand(
+                        ticketId,
+                        TicketStatus.valueOf(
+                                request.status()
+                                        .toUpperCase(Locale.ROOT)
+                        )
+                );
+
+        TicketResult result =
+                changeTicketStatusUseCase.changeStatus(
+                        command,
+                        createUserContext(authentication)
+                );
+
+        return ResponseEntity.ok(
+                TicketResponse.fromResult(result)
+        );
     }
 
     private UserContext createUserContext(

@@ -31,8 +31,13 @@ import com.adil.supportdesk.application.ticket.assign.AssignTicketUseCase;
 
 import com.adil.supportdesk.application.ticket.comment.AddCommentUseCase;
 
+import com.adil.supportdesk.application.ticket.changestatus.ChangeTicketStatusUseCase;
+
 @WebMvcTest(TicketController.class)
 class TicketControllerIntegrationTest {
+
+    @MockBean
+    private ChangeTicketStatusUseCase changeTicketStatusUseCase;
 
     @MockBean
     private AddCommentUseCase addCommentUseCase;
