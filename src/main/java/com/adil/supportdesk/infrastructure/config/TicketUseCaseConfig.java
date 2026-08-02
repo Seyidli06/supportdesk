@@ -1,5 +1,6 @@
 package com.adil.supportdesk.infrastructure.config;
 
+import com.adil.supportdesk.application.port.out.TicketQueryRepository;
 import com.adil.supportdesk.application.port.out.TicketRepository;
 import com.adil.supportdesk.application.port.out.UserDirectory;
 import com.adil.supportdesk.application.ticket.assign.AssignTicketApplicationService;
@@ -10,6 +11,10 @@ import com.adil.supportdesk.application.ticket.comment.AddCommentApplicationServ
 import com.adil.supportdesk.application.ticket.comment.AddCommentUseCase;
 import com.adil.supportdesk.application.ticket.create.CreateTicketApplicationService;
 import com.adil.supportdesk.application.ticket.create.CreateTicketUseCase;
+import com.adil.supportdesk.application.ticket.get.GetTicketApplicationService;
+import com.adil.supportdesk.application.ticket.get.GetTicketUseCase;
+import com.adil.supportdesk.application.ticket.query.ListTicketsApplicationService;
+import com.adil.supportdesk.application.ticket.query.ListTicketsUseCase;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -67,6 +72,24 @@ public class TicketUseCaseConfig {
         return new ChangeTicketStatusApplicationService(
                 ticketRepository,
                 clock
+        );
+    }
+
+    @Bean
+    public GetTicketUseCase getTicketUseCase(
+            TicketQueryRepository ticketQueryRepository
+    ) {
+        return new GetTicketApplicationService(
+                ticketQueryRepository
+        );
+    }
+
+    @Bean
+    public ListTicketsUseCase listTicketsUseCase(
+            TicketQueryRepository ticketQueryRepository
+    ) {
+        return new ListTicketsApplicationService(
+                ticketQueryRepository
         );
     }
 }

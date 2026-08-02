@@ -4,6 +4,7 @@ import com.adil.supportdesk.adapter.in.web.dto.AddCommentRequest;
 import com.adil.supportdesk.adapter.in.web.dto.AssignTicketRequest;
 import com.adil.supportdesk.adapter.in.web.dto.ChangeTicketStatusRequest;
 import com.adil.supportdesk.adapter.in.web.dto.CreateTicketRequest;
+import com.adil.supportdesk.adapter.in.web.dto.TicketPageResponse;
 import com.adil.supportdesk.adapter.in.web.dto.TicketResponse;
 import com.adil.supportdesk.application.security.UserContext;
 import com.adil.supportdesk.application.security.UserRole;
@@ -15,7 +16,11 @@ import com.adil.supportdesk.application.ticket.comment.AddCommentCommand;
 import com.adil.supportdesk.application.ticket.comment.AddCommentUseCase;
 import com.adil.supportdesk.application.ticket.create.CreateTicketCommand;
 import com.adil.supportdesk.application.ticket.create.CreateTicketUseCase;
+import com.adil.supportdesk.application.ticket.get.GetTicketUseCase;
 import com.adil.supportdesk.application.ticket.get.TicketResult;
+import com.adil.supportdesk.application.ticket.query.ListTicketsQuery;
+import com.adil.supportdesk.application.ticket.query.ListTicketsUseCase;
+import com.adil.supportdesk.application.ticket.query.TicketPageResult;
 import com.adil.supportdesk.domain.ticket.model.TicketPriority;
 import com.adil.supportdesk.domain.ticket.model.TicketStatus;
 import jakarta.validation.Valid;
@@ -23,11 +28,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Locale;
@@ -43,18 +50,24 @@ public class TicketController {
     private final AddCommentUseCase addCommentUseCase;
     private final ChangeTicketStatusUseCase
             changeTicketStatusUseCase;
+    private final GetTicketUseCase getTicketUseCase;
+    private final ListTicketsUseCase listTicketsUseCase;
 
     public TicketController(
             CreateTicketUseCase createTicketUseCase,
             AssignTicketUseCase assignTicketUseCase,
             AddCommentUseCase addCommentUseCase,
-            ChangeTicketStatusUseCase changeTicketStatusUseCase
+            ChangeTicketStatusUseCase changeTicketStatusUseCase,
+            GetTicketUseCase getTicketUseCase,
+            ListTicketsUseCase listTicketsUseCase
     ) {
         this.createTicketUseCase = createTicketUseCase;
         this.assignTicketUseCase = assignTicketUseCase;
         this.addCommentUseCase = addCommentUseCase;
         this.changeTicketStatusUseCase =
                 changeTicketStatusUseCase;
+        this.getTicketUseCase = getTicketUseCase;
+        this.listTicketsUseCase = listTicketsUseCase;
     }
 
     @PostMapping
@@ -81,6 +94,57 @@ public class TicketController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(TicketResponse.fromResult(result));
+    }
+
+    @GetMapping("/{ticketId}")
+    public ResponseEntity<TicketResponse> getTicket(
+            @PathVariable String ticketId,
+            Authentication authentication
+    ) {
+        TicketResult result =
+                getTicketUseCase.getTicket(
+                        ticketId,
+                        createUserContext(authentication)
+                );
+
+        return ResponseEntity.ok(
+                TicketResponse.fromResult(result)
+        );
+    }
+
+    @GetMapping
+    public ResponseEntity<TicketPageResponse> listTickets(
+            @RequestParam(required = false)
+            String status,
+
+            @RequestParam(required = false)
+            String priority,
+
+            @RequestParam(defaultValue = "0")
+            int page,
+
+            @RequestParam(defaultValue = "20")
+            int size,
+
+            Authentication authentication
+    ) {
+        ListTicketsQuery query =
+                new ListTicketsQuery(
+                        parseStatus(status),
+                        parsePriority(priority),
+                        page,
+                        size
+                );
+
+        TicketPageResult result =
+                listTicketsUseCase.listTickets(
+                        query,
+                        createUserContext(authentication)
+                );
+
+        return ResponseEntity.ok(
+                TicketPageResponse.fromResult(result)
+        );
     }
 
     @PatchMapping("/{ticketId}/assignment")
@@ -153,6 +217,33 @@ public class TicketController {
 
         return ResponseEntity.ok(
                 TicketResponse.fromResult(result)
+        );
+    }
+
+    private TicketStatus parseStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+
+        return TicketStatus.valueOf(
+                status.trim()
+                        .toUpperCase(Locale.ROOT)
+        );
+    }
+
+    private TicketPriority parsePriority(
+            String priority
+    ) {
+        if (
+                priority == null
+                        || priority.isBlank()
+        ) {
+            return null;
+        }
+
+        return TicketPriority.valueOf(
+                priority.trim()
+                        .toUpperCase(Locale.ROOT)
         );
     }
 
