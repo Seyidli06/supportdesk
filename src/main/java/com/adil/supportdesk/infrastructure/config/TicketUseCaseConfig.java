@@ -6,6 +6,8 @@ import com.adil.supportdesk.application.ticket.assign.AssignTicketApplicationSer
 import com.adil.supportdesk.application.ticket.assign.AssignTicketUseCase;
 import com.adil.supportdesk.application.ticket.changestatus.ChangeTicketStatusApplicationService;
 import com.adil.supportdesk.application.ticket.changestatus.ChangeTicketStatusUseCase;
+import com.adil.supportdesk.application.ticket.comment.AddCommentApplicationService;
+import com.adil.supportdesk.application.ticket.comment.AddCommentUseCase;
 import com.adil.supportdesk.application.ticket.create.CreateTicketApplicationService;
 import com.adil.supportdesk.application.ticket.create.CreateTicketUseCase;
 import org.springframework.context.annotation.Bean;
@@ -41,6 +43,17 @@ public class TicketUseCaseConfig {
         return new AssignTicketApplicationService(
                 ticketRepository,
                 userDirectory,
+                clock
+        );
+    }
+
+    @Bean
+    public AddCommentUseCase addCommentUseCase(
+            TicketRepository ticketRepository,
+            Clock clock
+    ) {
+        return new AddCommentApplicationService(
+                ticketRepository,
                 clock
         );
     }

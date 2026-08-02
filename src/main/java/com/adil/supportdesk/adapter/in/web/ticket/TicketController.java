@@ -1,5 +1,6 @@
 package com.adil.supportdesk.adapter.in.web.ticket;
 
+import com.adil.supportdesk.adapter.in.web.dto.AddCommentRequest;
 import com.adil.supportdesk.adapter.in.web.dto.AssignTicketRequest;
 import com.adil.supportdesk.adapter.in.web.dto.CreateTicketRequest;
 import com.adil.supportdesk.adapter.in.web.dto.TicketResponse;
@@ -7,6 +8,8 @@ import com.adil.supportdesk.application.security.UserContext;
 import com.adil.supportdesk.application.security.UserRole;
 import com.adil.supportdesk.application.ticket.assign.AssignTicketCommand;
 import com.adil.supportdesk.application.ticket.assign.AssignTicketUseCase;
+import com.adil.supportdesk.application.ticket.comment.AddCommentCommand;
+import com.adil.supportdesk.application.ticket.comment.AddCommentUseCase;
 import com.adil.supportdesk.application.ticket.create.CreateTicketCommand;
 import com.adil.supportdesk.application.ticket.create.CreateTicketUseCase;
 import com.adil.supportdesk.application.ticket.get.TicketResult;
@@ -33,13 +36,16 @@ public class TicketController {
 
     private final CreateTicketUseCase createTicketUseCase;
     private final AssignTicketUseCase assignTicketUseCase;
+    private final AddCommentUseCase addCommentUseCase;
 
     public TicketController(
             CreateTicketUseCase createTicketUseCase,
-            AssignTicketUseCase assignTicketUseCase
+            AssignTicketUseCase assignTicketUseCase,
+            AddCommentUseCase addCommentUseCase
     ) {
         this.createTicketUseCase = createTicketUseCase;
         this.assignTicketUseCase = assignTicketUseCase;
+        this.addCommentUseCase = addCommentUseCase;
     }
 
     @PostMapping
@@ -57,13 +63,10 @@ public class TicketController {
                         )
                 );
 
-        UserContext userContext =
-                createUserContext(authentication);
-
         TicketResult result =
                 createTicketUseCase.createTicket(
                         command,
-                        userContext
+                        createUserContext(authentication)
                 );
 
         return ResponseEntity
@@ -83,18 +86,38 @@ public class TicketController {
                         request.agentId()
                 );
 
-        UserContext userContext =
-                createUserContext(authentication);
-
         TicketResult result =
                 assignTicketUseCase.assignTicket(
                         command,
-                        userContext
+                        createUserContext(authentication)
                 );
 
         return ResponseEntity.ok(
                 TicketResponse.fromResult(result)
         );
+    }
+
+    @PostMapping("/{ticketId}/comments")
+    public ResponseEntity<TicketResponse> addComment(
+            @PathVariable String ticketId,
+            @Valid @RequestBody AddCommentRequest request,
+            Authentication authentication
+    ) {
+        AddCommentCommand command =
+                new AddCommentCommand(
+                        ticketId,
+                        request.content()
+                );
+
+        TicketResult result =
+                addCommentUseCase.addComment(
+                        command,
+                        createUserContext(authentication)
+                );
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(TicketResponse.fromResult(result));
     }
 
     private UserContext createUserContext(

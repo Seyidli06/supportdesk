@@ -29,10 +29,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.adil.supportdesk.application.ticket.assign.AssignTicketUseCase;
 
-
+import com.adil.supportdesk.application.ticket.comment.AddCommentUseCase;
 
 @WebMvcTest(TicketController.class)
 class TicketControllerIntegrationTest {
+
+    @MockBean
+    private AddCommentUseCase addCommentUseCase;
 
     @MockBean
     private AssignTicketUseCase assignTicketUseCase;
