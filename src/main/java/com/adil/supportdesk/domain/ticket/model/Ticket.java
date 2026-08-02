@@ -19,7 +19,6 @@ public class Ticket {
 
     private final TicketId id;
     private final UserId requesterId;
-
     private UserId assignedAgentId;
 
     private String title;
@@ -44,6 +43,38 @@ public class Ticket {
             TicketPriority priority,
             Instant createdAt
     ) {
+        this(
+                id,
+                requesterId,
+                null,
+                title,
+                description,
+                priority,
+                TicketStatus.OPEN,
+                List.of(),
+                createdAt,
+                createdAt,
+                null,
+                null,
+                null
+        );
+    }
+
+    private Ticket(
+            TicketId id,
+            UserId requesterId,
+            UserId assignedAgentId,
+            String title,
+            String description,
+            TicketPriority priority,
+            TicketStatus status,
+            List<Comment> comments,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant resolvedAt,
+            Instant closedAt,
+            Instant slaDueAt
+    ) {
         validateTitle(title);
         validateDescription(description);
 
@@ -51,24 +82,82 @@ public class Ticket {
                 id,
                 "TicketId cannot be null"
         );
+
         this.requesterId = Objects.requireNonNull(
                 requesterId,
                 "RequesterId cannot be null"
         );
+
         this.priority = Objects.requireNonNull(
                 priority,
                 "Ticket priority cannot be null"
         );
+
+        this.status = Objects.requireNonNull(
+                status,
+                "Ticket status cannot be null"
+        );
+
         this.createdAt = Objects.requireNonNull(
                 createdAt,
                 "CreatedAt cannot be null"
         );
 
+        this.updatedAt = Objects.requireNonNull(
+                updatedAt,
+                "UpdatedAt cannot be null"
+        );
+
+        if (updatedAt.isBefore(createdAt)) {
+            throw new IllegalArgumentException(
+                    "UpdatedAt cannot be before CreatedAt"
+            );
+        }
+
+        this.assignedAgentId = assignedAgentId;
         this.title = title.trim();
         this.description = description.trim();
-        this.status = TicketStatus.OPEN;
-        this.comments = new ArrayList<>();
-        this.updatedAt = createdAt;
+        this.comments = new ArrayList<>(
+                Objects.requireNonNull(
+                        comments,
+                        "Comments cannot be null"
+                )
+        );
+        this.resolvedAt = resolvedAt;
+        this.closedAt = closedAt;
+        this.slaDueAt = slaDueAt;
+    }
+
+    public static Ticket restore(
+            TicketId id,
+            UserId requesterId,
+            UserId assignedAgentId,
+            String title,
+            String description,
+            TicketPriority priority,
+            TicketStatus status,
+            List<Comment> comments,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant resolvedAt,
+            Instant closedAt,
+            Instant slaDueAt
+    ) {
+        return new Ticket(
+                id,
+                requesterId,
+                assignedAgentId,
+                title,
+                description,
+                priority,
+                status,
+                comments,
+                createdAt,
+                updatedAt,
+                resolvedAt,
+                closedAt,
+                slaDueAt
+        );
     }
 
     public void assignTo(
@@ -81,14 +170,15 @@ public class Ticket {
                 agentId,
                 "AgentId cannot be null"
         );
+
         validateTimestamp(now);
 
-        if (agentId.equals(this.assignedAgentId)) {
+        if (agentId.equals(assignedAgentId)) {
             return;
         }
 
-        this.assignedAgentId = agentId;
-        this.updatedAt = now;
+        assignedAgentId = agentId;
+        updatedAt = now;
     }
 
     public void transitionTo(
@@ -101,40 +191,41 @@ public class Ticket {
                 newStatus,
                 "New status cannot be null"
         );
+
         validateTimestamp(now);
 
-        if (newStatus == this.status) {
+        if (newStatus == status) {
             return;
         }
 
         if (!TicketStatusPolicy.canTransition(
-                this.status,
+                status,
                 newStatus
         )) {
             throw new InvalidStatusTransitionException(
-                    this.status,
+                    status,
                     newStatus
             );
         }
 
-        TicketStatus previousStatus = this.status;
+        TicketStatus previousStatus = status;
 
-        this.status = newStatus;
-        this.updatedAt = now;
+        status = newStatus;
+        updatedAt = now;
 
         if (newStatus == TicketStatus.RESOLVED) {
-            this.resolvedAt = now;
+            resolvedAt = now;
         }
 
         if (
                 previousStatus == TicketStatus.RESOLVED
                         && newStatus == TicketStatus.IN_PROGRESS
         ) {
-            this.resolvedAt = null;
+            resolvedAt = null;
         }
 
         if (newStatus == TicketStatus.CLOSED) {
-            this.closedAt = now;
+            closedAt = now;
         }
     }
 
@@ -153,8 +244,8 @@ public class Ticket {
                 now
         );
 
-        this.comments.add(comment);
-        this.updatedAt = now;
+        comments.add(comment);
+        updatedAt = now;
     }
 
     public void changePriority(
@@ -167,31 +258,32 @@ public class Ticket {
                 newPriority,
                 "New priority cannot be null"
         );
+
         validateTimestamp(now);
 
-        if (newPriority == this.priority) {
+        if (newPriority == priority) {
             return;
         }
 
-        this.priority = newPriority;
-        this.updatedAt = now;
+        priority = newPriority;
+        updatedAt = now;
     }
 
-    public void defineSlaDueAt(Instant slaDueAt) {
+    public void defineSlaDueAt(Instant dueAt) {
         validateNotClosed("define SLA due date");
 
         Objects.requireNonNull(
-                slaDueAt,
+                dueAt,
                 "SLA due date cannot be null"
         );
 
-        if (!slaDueAt.isAfter(createdAt)) {
+        if (!dueAt.isAfter(createdAt)) {
             throw new IllegalArgumentException(
                     "SLA due date must be after ticket creation time"
             );
         }
 
-        this.slaDueAt = slaDueAt;
+        slaDueAt = dueAt;
     }
 
     public boolean isRequestedBy(UserId userId) {
@@ -242,8 +334,13 @@ public class Ticket {
         }
     }
 
-    private static void validateDescription(String description) {
-        if (description == null || description.isBlank()) {
+    private static void validateDescription(
+            String description
+    ) {
+        if (
+                description == null
+                        || description.isBlank()
+        ) {
             throw new IllegalArgumentException(
                     "Ticket description cannot be empty"
             );
