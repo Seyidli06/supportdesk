@@ -3,6 +3,7 @@ package com.adil.supportdesk.adapter.in.web.dto;
 import com.adil.supportdesk.application.ticket.get.TicketResult;
 
 import java.time.Instant;
+import java.util.List;
 
 public record TicketResponse(
         String id,
@@ -12,6 +13,7 @@ public record TicketResponse(
         String status,
         String requesterId,
         String assignedAgentId,
+        List<CommentResponse> comments,
         Instant createdAt,
         Instant updatedAt,
         Instant resolvedAt,
@@ -22,6 +24,19 @@ public record TicketResponse(
     public static TicketResponse fromResult(
             TicketResult result
     ) {
+        List<CommentResponse> comments =
+                result.comments()
+                        .stream()
+                        .map(comment ->
+                                new CommentResponse(
+                                        comment.id(),
+                                        comment.authorId(),
+                                        comment.content(),
+                                        comment.createdAt()
+                                )
+                        )
+                        .toList();
+
         return new TicketResponse(
                 result.id(),
                 result.title(),
@@ -30,11 +45,20 @@ public record TicketResponse(
                 result.status().name(),
                 result.requesterId(),
                 result.assignedAgentId(),
+                comments,
                 result.createdAt(),
                 result.updatedAt(),
                 result.resolvedAt(),
                 result.closedAt(),
                 result.slaDueAt()
         );
+    }
+
+    public record CommentResponse(
+            String id,
+            String authorId,
+            String content,
+            Instant createdAt
+    ) {
     }
 }
