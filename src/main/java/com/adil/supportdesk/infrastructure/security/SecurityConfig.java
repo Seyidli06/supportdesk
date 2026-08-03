@@ -1,5 +1,11 @@
 package com.adil.supportdesk.infrastructure.security;
 
+import com.adil.supportdesk.infrastructure.ratelimit.RateLimitBucketRegistry;
+import com.adil.supportdesk.infrastructure.ratelimit.RateLimitClientKeyResolver;
+import com.adil.supportdesk.infrastructure.ratelimit.RateLimitFilter;
+import com.adil.supportdesk.infrastructure.ratelimit.RateLimitPolicyResolver;
+import com.adil.supportdesk.infrastructure.ratelimit.RateLimitProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
@@ -25,11 +31,23 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             ObjectProvider<JwtAccessTokenProvider>
-                    tokenProviderObjectProvider
+                    tokenProviderObjectProvider,
+            ObjectProvider<RateLimitBucketRegistry>
+                    bucketRegistryObjectProvider,
+            ObjectProvider<RateLimitClientKeyResolver>
+                    clientKeyResolverObjectProvider,
+            ObjectProvider<RateLimitPolicyResolver>
+                    policyResolverObjectProvider,
+            ObjectProvider<RateLimitProperties>
+                    propertiesObjectProvider,
+            ObjectProvider<ObjectMapper>
+                    objectMapperObjectProvider
     ) throws Exception {
 
         http
-                .csrf(AbstractHttpConfigurer::disable)
+                .csrf(
+                        AbstractHttpConfigurer::disable
+                )
                 .formLogin(
                         AbstractHttpConfigurer::disable
                 )
@@ -89,6 +107,57 @@ public class SecurityConfig {
                     UsernamePasswordAuthenticationFilter
                             .class
             );
+        }
+
+        RateLimitBucketRegistry bucketRegistry =
+                bucketRegistryObjectProvider
+                        .getIfAvailable();
+
+        RateLimitClientKeyResolver clientKeyResolver =
+                clientKeyResolverObjectProvider
+                        .getIfAvailable();
+
+        RateLimitPolicyResolver policyResolver =
+                policyResolverObjectProvider
+                        .getIfAvailable();
+
+        RateLimitProperties properties =
+                propertiesObjectProvider
+                        .getIfAvailable();
+
+        ObjectMapper objectMapper =
+                objectMapperObjectProvider
+                        .getIfAvailable();
+
+        boolean rateLimitDependenciesAvailable =
+                bucketRegistry != null
+                        && clientKeyResolver != null
+                        && policyResolver != null
+                        && properties != null
+                        && objectMapper != null;
+
+        if (rateLimitDependenciesAvailable) {
+            RateLimitFilter rateLimitFilter =
+                    new RateLimitFilter(
+                            bucketRegistry,
+                            clientKeyResolver,
+                            policyResolver,
+                            properties,
+                            objectMapper
+                    );
+
+            if (tokenProvider != null) {
+                http.addFilterAfter(
+                        rateLimitFilter,
+                        JwtAuthenticationFilter.class
+                );
+            } else {
+                http.addFilterBefore(
+                        rateLimitFilter,
+                        UsernamePasswordAuthenticationFilter
+                                .class
+                );
+            }
         }
 
         return http.build();
