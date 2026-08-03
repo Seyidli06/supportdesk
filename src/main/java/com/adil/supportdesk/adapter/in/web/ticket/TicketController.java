@@ -1,11 +1,11 @@
 package com.adil.supportdesk.adapter.in.web.ticket;
 
-import com.adil.supportdesk.adapter.in.web.dto.AddCommentRequest;
-import com.adil.supportdesk.adapter.in.web.dto.AssignTicketRequest;
-import com.adil.supportdesk.adapter.in.web.dto.ChangeTicketStatusRequest;
-import com.adil.supportdesk.adapter.in.web.dto.CreateTicketRequest;
-import com.adil.supportdesk.adapter.in.web.dto.TicketPageResponse;
-import com.adil.supportdesk.adapter.in.web.dto.TicketResponse;
+import com.adil.supportdesk.adapter.in.web.ticket.dto.AddCommentRequest;
+import com.adil.supportdesk.adapter.in.web.ticket.dto.AssignTicketRequest;
+import com.adil.supportdesk.adapter.in.web.ticket.dto.ChangeTicketStatusRequest;
+import com.adil.supportdesk.adapter.in.web.ticket.dto.CreateTicketRequest;
+import com.adil.supportdesk.adapter.in.web.ticket.dto.TicketPageResponse;
+import com.adil.supportdesk.adapter.in.web.ticket.dto.TicketResponse;
 import com.adil.supportdesk.application.security.UserContext;
 import com.adil.supportdesk.application.security.UserRole;
 import com.adil.supportdesk.application.ticket.assign.AssignTicketCommand;

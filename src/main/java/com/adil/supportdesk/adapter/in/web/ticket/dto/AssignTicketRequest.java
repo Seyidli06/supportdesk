@@ -1,4 +1,4 @@
-package com.adil.supportdesk.adapter.in.web.dto;
+package com.adil.supportdesk.adapter.in.web.ticket.dto;
 
 import jakarta.validation.constraints.NotBlank;
 

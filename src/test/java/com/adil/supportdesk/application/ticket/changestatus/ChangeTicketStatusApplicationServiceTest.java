@@ -1,4 +1,4 @@
-package com.adil.supportdesk.application.ticket;
+package com.adil.supportdesk.application.ticket.changestatus;
 
 import com.adil.supportdesk.application.port.out.TicketRepository;
 import com.adil.supportdesk.application.security.UnauthorizedAccessException;

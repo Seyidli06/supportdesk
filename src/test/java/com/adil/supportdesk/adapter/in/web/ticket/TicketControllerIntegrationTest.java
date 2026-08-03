@@ -1,6 +1,6 @@
-package com.adil.supportdesk.adapter.in.web;
+package com.adil.supportdesk.adapter.in.web.ticket;
 
-import com.adil.supportdesk.adapter.in.web.dto.CreateTicketRequest;
+import com.adil.supportdesk.adapter.in.web.ticket.dto.CreateTicketRequest;
 import com.adil.supportdesk.adapter.in.web.ticket.TicketController;
 import com.adil.supportdesk.application.ticket.create.CreateTicketUseCase;
 import com.adil.supportdesk.application.ticket.get.TicketResult;

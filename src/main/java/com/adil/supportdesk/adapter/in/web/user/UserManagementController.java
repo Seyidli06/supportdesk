@@ -1,8 +1,8 @@
 package com.adil.supportdesk.adapter.in.web.user;
 
-import com.adil.supportdesk.adapter.in.web.dto.UpdateUserRolesRequest;
-import com.adil.supportdesk.adapter.in.web.dto.UserPageResponse;
-import com.adil.supportdesk.adapter.in.web.dto.UserResponse;
+import com.adil.supportdesk.adapter.in.web.user.dto.UpdateUserRolesRequest;
+import com.adil.supportdesk.adapter.in.web.user.dto.UserPageResponse;
+import com.adil.supportdesk.adapter.in.web.user.dto.UserResponse;
 import com.adil.supportdesk.application.security.UserContext;
 import com.adil.supportdesk.application.security.UserRole;
 import com.adil.supportdesk.application.user.management.GetUserQuery;

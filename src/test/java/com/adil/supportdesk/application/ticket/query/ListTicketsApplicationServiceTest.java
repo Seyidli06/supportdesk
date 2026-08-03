@@ -1,4 +1,4 @@
-package com.adil.supportdesk.application.ticket;
+package com.adil.supportdesk.application.ticket.query;
 
 import com.adil.supportdesk.application.port.out.TicketQueryRepository;
 import com.adil.supportdesk.application.security.UserContext;

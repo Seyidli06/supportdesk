@@ -1,8 +1,8 @@
 package com.adil.supportdesk.adapter.in.web.auth;
 
-import com.adil.supportdesk.adapter.in.web.dto.AuthResponse;
-import com.adil.supportdesk.adapter.in.web.dto.LoginRequest;
-import com.adil.supportdesk.adapter.in.web.dto.RegisterRequest;
+import com.adil.supportdesk.adapter.in.web.auth.dto.AuthResponse;
+import com.adil.supportdesk.adapter.in.web.auth.dto.LoginRequest;
+import com.adil.supportdesk.adapter.in.web.auth.dto.RegisterRequest;
 import com.adil.supportdesk.application.auth.AuthResult;
 import com.adil.supportdesk.application.auth.LoginCommand;
 import com.adil.supportdesk.application.auth.LoginUseCase;

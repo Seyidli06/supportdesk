@@ -1,4 +1,4 @@
-package com.adil.supportdesk.adapter.in.web.common;
+package com.adil.supportdesk.adapter.in.web.error;
 
 import com.adil.supportdesk.application.auth.EmailAlreadyExistsException;
 import com.adil.supportdesk.application.auth.InvalidCredentialsException;

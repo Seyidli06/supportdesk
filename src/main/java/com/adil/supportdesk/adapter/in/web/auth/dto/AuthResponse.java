@@ -1,4 +1,4 @@
-package com.adil.supportdesk.adapter.in.web.dto;
+package com.adil.supportdesk.adapter.in.web.auth.dto;
 
 import com.adil.supportdesk.application.auth.AuthResult;
 

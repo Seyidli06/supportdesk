@@ -1,4 +1,4 @@
-package com.adil.supportdesk.adapter.in.web.dto;
+package com.adil.supportdesk.adapter.in.web.auth.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

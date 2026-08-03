@@ -1,4 +1,4 @@
-package com.adil.supportdesk.adapter.in.web.dto;
+package com.adil.supportdesk.adapter.in.web.user.dto;
 
 import com.adil.supportdesk.application.user.management.UserPageResult;
 

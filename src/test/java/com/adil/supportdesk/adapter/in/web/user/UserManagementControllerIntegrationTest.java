@@ -1,6 +1,6 @@
 package com.adil.supportdesk.adapter.in.web.user;
 
-import com.adil.supportdesk.adapter.in.web.common.GlobalExceptionHandler;
+import com.adil.supportdesk.adapter.in.web.error.GlobalExceptionHandler;
 import com.adil.supportdesk.application.security.UserContext;
 import com.adil.supportdesk.application.security.UserRole;
 import com.adil.supportdesk.application.user.management.GetUserQuery;
