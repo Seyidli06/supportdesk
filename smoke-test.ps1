@@ -407,7 +407,7 @@ try {
         "Admin account was created"
 
 
-    Write-Step "9. CHANGE DATABASE ROLES"
+    Write-Step "9. BOOTSTRAP FIRST ADMIN"
 
     $containerRunning = (
         & docker inspect `
@@ -421,26 +421,6 @@ try {
         $containerRunning -ne "true"
     ) {
         throw "Docker container supportdesk-db is not running."
-    }
-
-    $agentRoleSql = @"
-DELETE FROM user_roles
-WHERE user_id = '$agentId';
-
-INSERT INTO user_roles (user_id, role)
-VALUES ('$agentId', 'AGENT');
-"@
-
-    & docker exec `
-        supportdesk-db `
-        psql `
-        -U postgres `
-        -d supportdesk_db `
-        -v ON_ERROR_STOP=1 `
-        -c $agentRoleSql
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "AGENT role could not be written to database."
     }
 
     $adminRoleSql = @"
@@ -460,38 +440,15 @@ VALUES ('$adminId', 'ADMIN');
         -c $adminRoleSql
 
     if ($LASTEXITCODE -ne 0) {
-        throw "ADMIN role could not be written to database."
+        throw "Initial ADMIN role could not be written to database."
     }
 
-    Write-Host "PASS: AGENT and ADMIN roles were written" `
+    Write-Host `
+        "PASS: Initial administrator was bootstrapped in database" `
         -ForegroundColor Green
 
 
-    Write-Step "10. LOGIN AGENT AND ADMIN"
-
-    $agentLoginResponse = Invoke-Api `
-        -Method POST `
-        -Url "$baseUrl/auth/login" `
-        -Body @{
-            email    = $agentEmail
-            password = $password
-        } `
-        -ExpectedStatus @(200)
-
-    $agentAuth = $agentLoginResponse.Json
-    $agentToken = [string]$agentAuth.accessToken
-
-    Assert-True `
-        (-not [string]::IsNullOrWhiteSpace($agentToken)) `
-        "AGENT JWT was received"
-
-    Assert-True `
-        (@($agentAuth.roles) -contains "AGENT") `
-        "Agent token contains AGENT role"
-
-    $agentHeaders = @{
-        Authorization = "Bearer $agentToken"
-    }
+    Write-Step "10. LOGIN ADMIN AFTER ROLE CHANGE"
 
     $adminLoginResponse = Invoke-Api `
         -Method POST `
@@ -511,14 +468,118 @@ VALUES ('$adminId', 'ADMIN');
 
     Assert-True `
         (@($adminAuth.roles) -contains "ADMIN") `
-        "Admin token contains ADMIN role"
+        "New ADMIN token contains ADMIN role"
 
     $adminHeaders = @{
         Authorization = "Bearer $adminToken"
     }
 
 
-    Write-Step "11. ADMIN ASSIGNS TICKET TO AGENT"
+    Write-Step "11. ADMIN MANAGES AGENT ROLES THROUGH API"
+
+    $agentBeforeResponse = Invoke-Api `
+        -Method GET `
+        -Url "$baseUrl/users/$agentId" `
+        -Headers $adminHeaders `
+        -ExpectedStatus @(200)
+
+    $agentBefore = $agentBeforeResponse.Json
+
+    Assert-True `
+        (@($agentBefore.roles) -contains "USER") `
+        "Newly registered agent initially has USER role"
+
+    Assert-True `
+        (
+            $agentBefore.PSObject.Properties.Name `
+                -notcontains "passwordHash"
+        ) `
+        "User management response does not expose passwordHash"
+
+    $agentRoleUpdateResponse = Invoke-Api `
+        -Method PATCH `
+        -Url "$baseUrl/users/$agentId/roles" `
+        -Headers $adminHeaders `
+        -Body @{
+            roles = @("AGENT")
+        } `
+        -ExpectedStatus @(200)
+
+    $updatedAgent = $agentRoleUpdateResponse.Json
+
+    Assert-True `
+        (@($updatedAgent.roles) -contains "AGENT") `
+        "ADMIN assigned AGENT role through API"
+
+    Assert-True `
+        (@($updatedAgent.roles) -notcontains "USER") `
+        "Existing USER role was replaced rather than appended"
+
+    $agentDetailResponse = Invoke-Api `
+        -Method GET `
+        -Url "$baseUrl/users/$agentId" `
+        -Headers $adminHeaders `
+        -ExpectedStatus @(200)
+
+    $agentDetail = $agentDetailResponse.Json
+
+    Assert-True `
+        (@($agentDetail.roles) -contains "AGENT") `
+        "Updated AGENT role was persisted"
+
+    $encodedAgentEmail = [System.Uri]::EscapeDataString(
+        $agentEmail
+    )
+
+    $agentSearchResponse = Invoke-Api `
+        -Method GET `
+        -Url "$baseUrl/users?role=AGENT&email=$encodedAgentEmail&page=0&size=20" `
+        -Headers $adminHeaders `
+        -ExpectedStatus @(200)
+
+    $agentSearchIds = @(
+        $agentSearchResponse.Json.content |
+            ForEach-Object {
+                [string]$_.id
+            }
+    )
+
+    Assert-True `
+        ($agentSearchIds -contains $agentId) `
+        "Agent appears in filtered ADMIN user list"
+
+
+    Write-Step "12. LOGIN AGENT AFTER ROLE CHANGE"
+
+    $agentLoginResponse = Invoke-Api `
+        -Method POST `
+        -Url "$baseUrl/auth/login" `
+        -Body @{
+            email    = $agentEmail
+            password = $password
+        } `
+        -ExpectedStatus @(200)
+
+    $agentAuth = $agentLoginResponse.Json
+    $agentToken = [string]$agentAuth.accessToken
+
+    Assert-True `
+        (-not [string]::IsNullOrWhiteSpace($agentToken)) `
+        "AGENT JWT was received"
+
+    Assert-True `
+        (@($agentAuth.roles) -contains "AGENT") `
+        "New AGENT token contains AGENT role"
+
+    Assert-True `
+        (@($agentAuth.roles) -notcontains "USER") `
+        "New AGENT token no longer contains USER role"
+
+    $agentHeaders = @{
+        Authorization = "Bearer $agentToken"
+    }
+
+    Write-Step "13. ADMIN ASSIGNS TICKET TO AGENT"
 
     $assignmentResponse = Invoke-Api `
         -Method PATCH `
@@ -536,7 +597,7 @@ VALUES ('$adminId', 'ADMIN');
         "Admin assigned ticket to agent"
 
 
-    Write-Step "12. AGENT TICKET LIST"
+    Write-Step "14. AGENT TICKET LIST"
 
     $agentListResponse = Invoke-Api `
         -Method GET `
@@ -556,7 +617,7 @@ VALUES ('$adminId', 'ADMIN');
         "Assigned ticket is visible in AGENT list"
 
 
-    Write-Step "13. AGENT CHANGES STATUS"
+    Write-Step "15. AGENT CHANGES STATUS"
 
     $statusResponse = Invoke-Api `
         -Method PATCH `
@@ -574,7 +635,7 @@ VALUES ('$adminId', 'ADMIN');
         "Agent changed status to IN_PROGRESS"
 
 
-    Write-Step "14. AGENT COMMENT"
+    Write-Step "16. AGENT COMMENT"
 
     $agentCommentText =
         "Comment added by assigned AGENT from PowerShell smoke test."
@@ -607,7 +668,7 @@ VALUES ('$adminId', 'ADMIN');
         "AGENT comment content is correct"
 
 
-    Write-Step "15. ADMIN TICKET LIST"
+    Write-Step "17. ADMIN TICKET LIST"
 
     $adminListResponse = Invoke-Api `
         -Method GET `
@@ -627,7 +688,7 @@ VALUES ('$adminId', 'ADMIN');
         "Ticket is visible in ADMIN list"
 
 
-    Write-Step "16. FINAL VERIFICATION"
+    Write-Step "18. FINAL VERIFICATION"
 
     $finalResponse = Invoke-Api `
         -Method GET `

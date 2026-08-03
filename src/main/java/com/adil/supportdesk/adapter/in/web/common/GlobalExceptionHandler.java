@@ -19,6 +19,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import com.adil.supportdesk.application.user.management.SelfAdminRoleRemovalException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -132,6 +133,21 @@ public class GlobalExceptionHandler {
         );
 
         return problemDetail;
+    }
+
+
+    @ExceptionHandler(
+            SelfAdminRoleRemovalException.class
+    )
+    public ProblemDetail handleSelfAdminRoleRemoval(
+            SelfAdminRoleRemovalException exception
+    ) {
+        return createProblem(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                "Admin Role Removal Rejected",
+                exception.getMessage(),
+                "self-admin-role-removal"
+        );
     }
 
     private ProblemDetail createProblem(

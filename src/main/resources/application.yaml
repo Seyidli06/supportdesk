@@ -1,4 +1,4 @@
-﻿spring:
+spring:
   application:
     name: ${APP_NAME:supportdesk}
 
@@ -33,5 +33,5 @@ server:
 
 security:
   jwt:
-    secret: ${JWT_SECRET:c3VwcG9ydGRlc2stZGVxLWp3dC1zaWduaW5nLWtleS0yMDI2LXNlY3VyZQ==}
+    secret: ${JWT_SECRET}
     expiration-seconds: ${JWT_EXPIRATION_SECONDS:3600}

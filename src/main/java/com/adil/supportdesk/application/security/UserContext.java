@@ -4,7 +4,13 @@ public record UserContext(
         String userId,
         UserRole role
 ) {
+
     public boolean isAgentOrAdmin() {
-        return role == UserRole.AGENT || role == UserRole.ADMIN;
+        return role == UserRole.AGENT
+                || role == UserRole.ADMIN;
+    }
+
+    public boolean isAdmin() {
+        return role == UserRole.ADMIN;
     }
 }

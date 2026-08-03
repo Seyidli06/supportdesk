@@ -1,5 +1,6 @@
 package com.adil.supportdesk.infrastructure.security;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,7 +12,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
 public class SecurityConfig {
@@ -56,6 +56,10 @@ public class SecurityConfig {
                                         "/error"
                                 )
                                 .permitAll()
+                                .requestMatchers(
+                                        "/api/v1/users/**"
+                                )
+                                .hasRole("ADMIN")
                                 .anyRequest()
                                 .authenticated()
                 )
