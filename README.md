@@ -28,7 +28,6 @@ The project is built with Java 21 and Spring Boot using Clean Architecture princ
 - [Testing](#testing)
 - [Smoke Tests](#smoke-tests)
 - [Database Model](#database-model)
-- [Production Considerations](#production-considerations)
 
 ## Features
 
