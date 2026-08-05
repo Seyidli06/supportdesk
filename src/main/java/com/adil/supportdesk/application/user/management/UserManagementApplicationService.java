@@ -115,14 +115,10 @@ public class UserManagementApplicationService
                 command
         );
 
-        AuthUser updatedUser = new AuthUser(
-                existingUser.id(),
-                existingUser.email(),
-                existingUser.passwordHash(),
-                existingUser.fullName(),
-                command.roles(),
-                existingUser.createdAt()
-        );
+        AuthUser updatedUser =
+                existingUser.withRoles(
+                        command.roles()
+                );
 
         AuthUser savedUser = userRepository.save(
                 updatedUser

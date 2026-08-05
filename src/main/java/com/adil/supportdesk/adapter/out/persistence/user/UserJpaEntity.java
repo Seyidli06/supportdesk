@@ -54,6 +54,12 @@ public class UserJpaEntity {
     )
     private Instant createdAt;
 
+    @Column(
+            name = "token_version",
+            nullable = false
+    )
+    private long tokenVersion;
+
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(
             name = "user_roles",
@@ -75,12 +81,33 @@ public class UserJpaEntity {
             Instant createdAt,
             Set<UserRole> roles
     ) {
+        this(
+                id,
+                email,
+                passwordHash,
+                fullName,
+                createdAt,
+                roles,
+                0L
+        );
+    }
+
+    UserJpaEntity(
+            UUID id,
+            String email,
+            String passwordHash,
+            String fullName,
+            Instant createdAt,
+            Set<UserRole> roles,
+            long tokenVersion
+    ) {
         this.id = id;
         this.email = email;
         this.passwordHash = passwordHash;
         this.fullName = fullName;
         this.createdAt = createdAt;
         this.roles = new HashSet<>(roles);
+        this.tokenVersion = tokenVersion;
     }
 
     public UUID getId() {
@@ -105,5 +132,9 @@ public class UserJpaEntity {
 
     public Set<UserRole> getRoles() {
         return Set.copyOf(roles);
+    }
+
+    public long getTokenVersion() {
+        return tokenVersion;
     }
 }

@@ -27,6 +27,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.mockito.ArgumentCaptor;
+
 @ExtendWith(MockitoExtension.class)
 class UserManagementApplicationServiceTest {
 
@@ -304,8 +306,18 @@ class UserManagementApplicationServiceTest {
                 result.roles()
         );
 
+        ArgumentCaptor<AuthUser> userCaptor =
+                ArgumentCaptor.forClass(
+                        AuthUser.class
+                );
+
         verify(userRepository).save(
-                any(AuthUser.class)
+                userCaptor.capture()
+        );
+
+        assertEquals(
+                1L,
+                userCaptor.getValue().tokenVersion()
         );
     }
 
