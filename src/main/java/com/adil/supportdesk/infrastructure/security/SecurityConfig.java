@@ -6,7 +6,6 @@ import com.adil.supportdesk.infrastructure.ratelimit.RateLimitFilter;
 import com.adil.supportdesk.infrastructure.ratelimit.RateLimitPolicyResolver;
 import com.adil.supportdesk.infrastructure.ratelimit.RateLimitProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,9 +39,14 @@ public class SecurityConfig {
                     policyResolverObjectProvider,
             ObjectProvider<RateLimitProperties>
                     propertiesObjectProvider,
-            ObjectProvider<ObjectMapper>
-                    objectMapperObjectProvider
+            ObjectMapper objectMapper
     ) throws Exception {
+
+        ProblemDetailSecurityHandler
+                securityProblemHandler =
+                new ProblemDetailSecurityHandler(
+                        objectMapper
+                );
 
         http
                 .csrf(
@@ -82,17 +86,13 @@ public class SecurityConfig {
                                 .authenticated()
                 )
                 .exceptionHandling(exception ->
-                        exception.authenticationEntryPoint(
-                                (
-                                        request,
-                                        response,
-                                        authenticationException
-                                ) -> response.sendError(
-                                        HttpServletResponse
-                                                .SC_UNAUTHORIZED,
-                                        "Authentication required"
+                        exception
+                                .authenticationEntryPoint(
+                                        securityProblemHandler
                                 )
-                        )
+                                .accessDeniedHandler(
+                                        securityProblemHandler
+                                )
                 );
 
         JwtAccessTokenProvider tokenProvider =
@@ -125,16 +125,11 @@ public class SecurityConfig {
                 propertiesObjectProvider
                         .getIfAvailable();
 
-        ObjectMapper objectMapper =
-                objectMapperObjectProvider
-                        .getIfAvailable();
-
         boolean rateLimitDependenciesAvailable =
                 bucketRegistry != null
                         && clientKeyResolver != null
                         && policyResolver != null
-                        && properties != null
-                        && objectMapper != null;
+                        && properties != null;
 
         if (rateLimitDependenciesAvailable) {
             RateLimitFilter rateLimitFilter =

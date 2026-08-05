@@ -57,7 +57,7 @@ class UserManagementControllerIntegrationTest {
 
     @Test
     @DisplayName(
-            "Unauthenticated request should return 401"
+            "Unauthenticated request should return 401 Problem Details"
     )
     void unauthenticatedRequestShouldReturn401()
             throws Exception {
@@ -67,6 +67,38 @@ class UserManagementControllerIntegrationTest {
                 )
                 .andExpect(
                         status().isUnauthorized()
+                )
+                .andExpect(
+                        jsonPath("$.type")
+                                .value(
+                                        "https://supportdesk.com/errors/"
+                                                + "authentication-required"
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.title")
+                                .value(
+                                        "Authentication Required"
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.status")
+                                .value(401)
+                )
+                .andExpect(
+                        jsonPath("$.detail")
+                                .value(
+                                        "Authentication is required "
+                                                + "to access this resource"
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.instance")
+                                .value("/api/v1/users")
+                )
+                .andExpect(
+                        jsonPath("$.timestamp")
+                                .exists()
                 );
 
         verifyNoInteractions(
@@ -74,13 +106,14 @@ class UserManagementControllerIntegrationTest {
         );
     }
 
+
     @Test
     @WithMockUser(
             username = USER_ID,
             roles = "USER"
     )
     @DisplayName(
-            "USER should receive 403"
+            "USER should receive 403 Problem Details"
     )
     void userShouldReceive403()
             throws Exception {
@@ -90,6 +123,36 @@ class UserManagementControllerIntegrationTest {
                 )
                 .andExpect(
                         status().isForbidden()
+                )
+                .andExpect(
+                        jsonPath("$.type")
+                                .value(
+                                        "https://supportdesk.com/errors/"
+                                                + "access-denied"
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.title")
+                                .value("Access Denied")
+                )
+                .andExpect(
+                        jsonPath("$.status")
+                                .value(403)
+                )
+                .andExpect(
+                        jsonPath("$.detail")
+                                .value(
+                                        "You do not have permission "
+                                                + "to access this resource"
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.instance")
+                                .value("/api/v1/users")
+                )
+                .andExpect(
+                        jsonPath("$.timestamp")
+                                .exists()
                 );
 
         verifyNoInteractions(
