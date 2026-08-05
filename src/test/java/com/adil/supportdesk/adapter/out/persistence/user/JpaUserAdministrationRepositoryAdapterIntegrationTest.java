@@ -32,7 +32,8 @@ class JpaUserAdministrationRepositoryAdapterIntegrationTest {
 
     @Test
     @DisplayName(
-            "Saving existing user should replace roles instead of appending"
+            "Saving existing user should replace roles "
+                    + "and preserve token version"
     )
     void shouldReplaceExistingUserRoles() {
         String token = uniqueToken();
@@ -46,16 +47,23 @@ class JpaUserAdministrationRepositoryAdapterIntegrationTest {
         AuthUser savedUser =
                 userRepository.save(originalUser);
 
-        AuthUser updatedUser = new AuthUser(
-                savedUser.id(),
-                savedUser.email(),
-                savedUser.passwordHash(),
-                savedUser.fullName(),
-                Set.of(UserRole.AGENT),
-                savedUser.createdAt()
+        assertEquals(
+                0L,
+                savedUser.tokenVersion()
         );
 
-        userRepository.save(updatedUser);
+        AuthUser updatedUser =
+                savedUser.withRoles(
+                        Set.of(UserRole.AGENT)
+                );
+
+        assertEquals(
+                1L,
+                updatedUser.tokenVersion()
+        );
+
+        AuthUser persistedUser =
+                userRepository.save(updatedUser);
 
         AuthUser reloadedUser = userRepository
                 .findById(savedUser.id())
@@ -69,6 +77,16 @@ class JpaUserAdministrationRepositoryAdapterIntegrationTest {
         assertFalse(
                 reloadedUser.roles()
                         .contains(UserRole.USER)
+        );
+
+        assertEquals(
+                1L,
+                persistedUser.tokenVersion()
+        );
+
+        assertEquals(
+                1L,
+                reloadedUser.tokenVersion()
         );
     }
 

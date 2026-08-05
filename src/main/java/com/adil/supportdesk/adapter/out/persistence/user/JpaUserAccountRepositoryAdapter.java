@@ -119,7 +119,8 @@ public class JpaUserAccountRepositoryAdapter
                 user.passwordHash(),
                 user.fullName(),
                 user.createdAt(),
-                user.roles()
+                user.roles(),
+                user.tokenVersion()
         );
 
         UserJpaEntity savedEntity =
@@ -185,7 +186,8 @@ public class JpaUserAccountRepositoryAdapter
                 entity.getPasswordHash(),
                 entity.getFullName(),
                 entity.getRoles(),
-                entity.getCreatedAt()
+                entity.getCreatedAt(),
+                entity.getTokenVersion()
         );
     }
 }
