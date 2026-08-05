@@ -1,12 +1,16 @@
 package com.adil.supportdesk.application.ticket.comment;
 
+import com.adil.supportdesk.application.port.out.TicketMutationRepository;
 import com.adil.supportdesk.application.port.out.TicketRepository;
 import com.adil.supportdesk.application.security.UnauthorizedAccessException;
 import com.adil.supportdesk.application.security.UserContext;
 import com.adil.supportdesk.application.security.UserRole;
 import com.adil.supportdesk.application.ticket.get.TicketResult;
 import com.adil.supportdesk.domain.ticket.exception.TicketNotFoundException;
+import com.adil.supportdesk.domain.ticket.model.Comment;
 import com.adil.supportdesk.domain.ticket.model.Ticket;
+import com.adil.supportdesk.domain.ticket.model.TicketEvent;
+import com.adil.supportdesk.domain.ticket.model.TicketEventType;
 import com.adil.supportdesk.domain.ticket.valueobject.TicketId;
 import com.adil.supportdesk.domain.user.valueobject.UserId;
 
@@ -18,16 +22,28 @@ public class AddCommentApplicationService
         implements AddCommentUseCase {
 
     private final TicketRepository ticketRepository;
+
+    private final TicketMutationRepository
+            ticketMutationRepository;
+
     private final Clock clock;
 
     public AddCommentApplicationService(
             TicketRepository ticketRepository,
+            TicketMutationRepository
+                    ticketMutationRepository,
             Clock clock
     ) {
         this.ticketRepository = Objects.requireNonNull(
                 ticketRepository,
                 "TicketRepository cannot be null"
         );
+
+        this.ticketMutationRepository =
+                Objects.requireNonNull(
+                        ticketMutationRepository,
+                        "TicketMutationRepository cannot be null"
+                );
 
         this.clock = Objects.requireNonNull(
                 clock,
@@ -72,14 +88,37 @@ public class AddCommentApplicationService
                 userContext.role()
         );
 
+        Instant now = Instant.now(clock);
+
         ticket.addComment(
                 authorId,
                 command.content(),
-                Instant.now(clock)
+                now
         );
 
+        Comment addedComment =
+                ticket.getComments()
+                        .getLast();
+
+        TicketEvent commentEvent =
+                TicketEvent.create(
+                        ticket.getId(),
+                        authorId,
+                        TicketEventType.COMMENT_ADDED,
+                        null,
+                        addedComment
+                                .getId()
+                                .getValue()
+                                .toString(),
+                        now
+                );
+
         Ticket savedTicket =
-                ticketRepository.save(ticket);
+                ticketMutationRepository
+                        .saveWithEvent(
+                                ticket,
+                                commentEvent
+                        );
 
         return TicketResult.from(savedTicket);
     }

@@ -1,14 +1,15 @@
 package com.adil.supportdesk.application.ticket.comment;
 
+import com.adil.supportdesk.application.port.out.TicketMutationRepository;
 import com.adil.supportdesk.application.port.out.TicketRepository;
 import com.adil.supportdesk.application.security.UnauthorizedAccessException;
 import com.adil.supportdesk.application.security.UserContext;
 import com.adil.supportdesk.application.security.UserRole;
-import com.adil.supportdesk.application.ticket.comment.AddCommentApplicationService;
-import com.adil.supportdesk.application.ticket.comment.AddCommentCommand;
 import com.adil.supportdesk.application.ticket.get.TicketResult;
 import com.adil.supportdesk.domain.ticket.exception.TicketClosedException;
 import com.adil.supportdesk.domain.ticket.model.Ticket;
+import com.adil.supportdesk.domain.ticket.model.TicketEvent;
+import com.adil.supportdesk.domain.ticket.model.TicketEventType;
 import com.adil.supportdesk.domain.ticket.model.TicketPriority;
 import com.adil.supportdesk.domain.ticket.model.TicketStatus;
 import com.adil.supportdesk.domain.ticket.valueobject.TicketId;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -26,6 +28,7 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -36,10 +39,16 @@ import static org.mockito.Mockito.when;
 class AddCommentApplicationServiceTest {
 
     private static final Instant NOW =
-            Instant.parse("2026-08-02T16:00:00Z");
+            Instant.parse(
+                    "2026-08-02T16:00:00Z"
+            );
 
     @Mock
     private TicketRepository ticketRepository;
+
+    @Mock
+    private TicketMutationRepository
+            ticketMutationRepository;
 
     private AddCommentApplicationService service;
 
@@ -57,6 +66,7 @@ class AddCommentApplicationServiceTest {
 
         service = new AddCommentApplicationService(
                 ticketRepository,
+                ticketMutationRepository,
                 clock
         );
 
@@ -76,33 +86,96 @@ class AddCommentApplicationServiceTest {
 
     @Test
     @DisplayName(
-            "Requester should add comment to own ticket"
+            "Requester should add comment "
+                    + "and create audit event"
     )
     void requesterShouldAddComment() {
         prepareRepository();
 
-        UserContext context = new UserContext(
-                requesterId.toString(),
-                UserRole.USER
+        UserContext context =
+                new UserContext(
+                        requesterId.toString(),
+                        UserRole.USER
+                );
+
+        TicketResult result =
+                service.addComment(
+                        command(),
+                        context
+                );
+
+        assertEquals(
+                1,
+                result.comments().size()
         );
 
-        TicketResult result = service.addComment(
-                command(),
-                context
-        );
-
-        assertEquals(1, result.comments().size());
         assertEquals(
                 requesterId.toString(),
-                result.comments().getFirst().authorId()
+                result.comments()
+                        .getFirst()
+                        .authorId()
         );
 
-        verify(ticketRepository).save(ticket);
+        assertEquals(
+                NOW,
+                result.comments()
+                        .getFirst()
+                        .createdAt()
+        );
+
+        ArgumentCaptor<TicketEvent> eventCaptor =
+                ArgumentCaptor.forClass(
+                        TicketEvent.class
+                );
+
+        verify(
+                ticketMutationRepository
+        ).saveWithEvent(
+                any(Ticket.class),
+                eventCaptor.capture()
+        );
+
+        TicketEvent capturedEvent =
+                eventCaptor.getValue();
+
+        assertEquals(
+                TicketEventType.COMMENT_ADDED,
+                capturedEvent.type()
+        );
+
+        assertEquals(
+                ticketId,
+                capturedEvent.ticketId()
+        );
+
+        assertEquals(
+                requesterId,
+                capturedEvent.actorId()
+        );
+
+        assertNull(
+                capturedEvent.previousValue()
+        );
+
+        assertEquals(
+                ticket.getComments()
+                        .getLast()
+                        .getId()
+                        .getValue()
+                        .toString(),
+                capturedEvent.newValue()
+        );
+
+        assertEquals(
+                NOW,
+                capturedEvent.createdAt()
+        );
     }
 
     @Test
     @DisplayName(
-            "Assigned agent should add comment"
+            "Assigned agent should add comment "
+                    + "and create audit event"
     )
     void assignedAgentShouldAddComment() {
         ticket.assignTo(
@@ -112,20 +185,50 @@ class AddCommentApplicationServiceTest {
 
         prepareRepository();
 
-        UserContext context = new UserContext(
-                agentId.toString(),
-                UserRole.AGENT
+        UserContext context =
+                new UserContext(
+                        agentId.toString(),
+                        UserRole.AGENT
+                );
+
+        TicketResult result =
+                service.addComment(
+                        command(),
+                        context
+                );
+
+        assertEquals(
+                1,
+                result.comments().size()
         );
 
-        TicketResult result = service.addComment(
-                command(),
-                context
-        );
-
-        assertEquals(1, result.comments().size());
         assertEquals(
                 agentId.toString(),
-                result.comments().getFirst().authorId()
+                result.comments()
+                        .getFirst()
+                        .authorId()
+        );
+
+        ArgumentCaptor<TicketEvent> eventCaptor =
+                ArgumentCaptor.forClass(
+                        TicketEvent.class
+                );
+
+        verify(
+                ticketMutationRepository
+        ).saveWithEvent(
+                any(Ticket.class),
+                eventCaptor.capture()
+        );
+
+        assertEquals(
+                TicketEventType.COMMENT_ADDED,
+                eventCaptor.getValue().type()
+        );
+
+        assertEquals(
+                agentId,
+                eventCaptor.getValue().actorId()
         );
     }
 
@@ -134,13 +237,17 @@ class AddCommentApplicationServiceTest {
             "Unassigned agent should not add comment"
     )
     void unassignedAgentShouldBeDenied() {
-        when(ticketRepository.findById(ticketId))
-                .thenReturn(Optional.of(ticket));
-
-        UserContext context = new UserContext(
-                agentId.toString(),
-                UserRole.AGENT
+        when(
+                ticketRepository.findById(ticketId)
+        ).thenReturn(
+                Optional.of(ticket)
         );
+
+        UserContext context =
+                new UserContext(
+                        agentId.toString(),
+                        UserRole.AGENT
+                );
 
         assertThrows(
                 UnauthorizedAccessException.class,
@@ -150,10 +257,7 @@ class AddCommentApplicationServiceTest {
                 )
         );
 
-        verify(
-                ticketRepository,
-                never()
-        ).save(any());
+        verifyNoMutation();
     }
 
     @Test
@@ -161,13 +265,17 @@ class AddCommentApplicationServiceTest {
             "Another user should not add comment"
     )
     void anotherUserShouldBeDenied() {
-        when(ticketRepository.findById(ticketId))
-                .thenReturn(Optional.of(ticket));
-
-        UserContext context = new UserContext(
-                UserId.generate().toString(),
-                UserRole.USER
+        when(
+                ticketRepository.findById(ticketId)
+        ).thenReturn(
+                Optional.of(ticket)
         );
+
+        UserContext context =
+                new UserContext(
+                        UserId.generate().toString(),
+                        UserRole.USER
+                );
 
         assertThrows(
                 UnauthorizedAccessException.class,
@@ -177,40 +285,65 @@ class AddCommentApplicationServiceTest {
                 )
         );
 
-        verify(
-                ticketRepository,
-                never()
-        ).save(any());
+        verifyNoMutation();
     }
 
     @Test
     @DisplayName(
-            "Admin should add comment to any ticket"
+            "Admin should add comment "
+                    + "and create audit event"
     )
     void adminShouldAddComment() {
         prepareRepository();
 
         UserId adminId = UserId.generate();
 
-        UserContext context = new UserContext(
-                adminId.toString(),
-                UserRole.ADMIN
-        );
+        UserContext context =
+                new UserContext(
+                        adminId.toString(),
+                        UserRole.ADMIN
+                );
 
-        TicketResult result = service.addComment(
-                command(),
-                context
-        );
+        TicketResult result =
+                service.addComment(
+                        command(),
+                        context
+                );
 
         assertEquals(
                 adminId.toString(),
-                result.comments().getFirst().authorId()
+                result.comments()
+                        .getFirst()
+                        .authorId()
+        );
+
+        ArgumentCaptor<TicketEvent> eventCaptor =
+                ArgumentCaptor.forClass(
+                        TicketEvent.class
+                );
+
+        verify(
+                ticketMutationRepository
+        ).saveWithEvent(
+                any(Ticket.class),
+                eventCaptor.capture()
+        );
+
+        assertEquals(
+                TicketEventType.COMMENT_ADDED,
+                eventCaptor.getValue().type()
+        );
+
+        assertEquals(
+                adminId,
+                eventCaptor.getValue().actorId()
         );
     }
 
     @Test
     @DisplayName(
-            "Closed ticket should reject comments"
+            "Closed ticket should reject comments "
+                    + "without audit event"
     )
     void closedTicketShouldRejectComment() {
         ticket.transitionTo(
@@ -228,13 +361,17 @@ class AddCommentApplicationServiceTest {
                 NOW.minusSeconds(200)
         );
 
-        when(ticketRepository.findById(ticketId))
-                .thenReturn(Optional.of(ticket));
-
-        UserContext context = new UserContext(
-                requesterId.toString(),
-                UserRole.USER
+        when(
+                ticketRepository.findById(ticketId)
+        ).thenReturn(
+                Optional.of(ticket)
         );
+
+        UserContext context =
+                new UserContext(
+                        requesterId.toString(),
+                        UserRole.USER
+                );
 
         assertThrows(
                 TicketClosedException.class,
@@ -244,26 +381,42 @@ class AddCommentApplicationServiceTest {
                 )
         );
 
-        verify(
-                ticketRepository,
-                never()
-        ).save(any());
+        verifyNoMutation();
     }
 
     private AddCommentCommand command() {
         return new AddCommentCommand(
-                ticketId.getValue().toString(),
+                ticketId
+                        .getValue()
+                        .toString(),
                 "The problem still continues"
         );
     }
 
     private void prepareRepository() {
-        when(ticketRepository.findById(ticketId))
-                .thenReturn(Optional.of(ticket));
+        when(
+                ticketRepository.findById(ticketId)
+        ).thenReturn(
+                Optional.of(ticket)
+        );
 
-        when(ticketRepository.save(any(Ticket.class)))
-                .thenAnswer(invocation ->
-                        invocation.getArgument(0)
-                );
+        when(
+                ticketMutationRepository.saveWithEvent(
+                        any(Ticket.class),
+                        any(TicketEvent.class)
+                )
+        ).thenAnswer(invocation ->
+                invocation.getArgument(0)
+        );
+    }
+
+    private void verifyNoMutation() {
+        verify(
+                ticketMutationRepository,
+                never()
+        ).saveWithEvent(
+                any(Ticket.class),
+                any(TicketEvent.class)
+        );
     }
 }

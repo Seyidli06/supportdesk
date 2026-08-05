@@ -60,10 +60,13 @@ public class TicketUseCaseConfig {
     @Bean
     public AddCommentUseCase addCommentUseCase(
             TicketRepository ticketRepository,
+            TicketMutationRepository
+                    ticketMutationRepository,
             Clock clock
     ) {
         return new AddCommentApplicationService(
                 ticketRepository,
+                ticketMutationRepository,
                 clock
         );
     }
