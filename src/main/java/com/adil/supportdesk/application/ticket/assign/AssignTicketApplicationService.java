@@ -102,6 +102,12 @@ public class AssignTicketApplicationService
                         )
                 );
 
+        validateAgentAssignmentOwnership(
+                userContext,
+                actorId,
+                ticket
+        );
+
         Instant now = Instant.now(clock);
 
         ticket.assignTo(
@@ -139,4 +145,21 @@ public class AssignTicketApplicationService
             );
         }
     }
+
+    private void validateAgentAssignmentOwnership(
+            UserContext userContext,
+            UserId actorId,
+            Ticket ticket
+    ) {
+        if (
+                userContext.role() == UserRole.AGENT
+                        && ticket.isAssigned()
+                        && !ticket.isAssignedTo(actorId)
+        ) {
+            throw new UnauthorizedAccessException(
+                    "Agents cannot take over tickets assigned to another agent"
+            );
+        }
+    }
+
 }

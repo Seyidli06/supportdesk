@@ -285,4 +285,134 @@ class AssignTicketApplicationServiceTest {
                 never()
         ).save(any());
     }
+
+    @Test
+    @DisplayName(
+            "Agent should not take over ticket assigned to another agent"
+    )
+    void agentShouldNotTakeOverTicketAssignedToAnotherAgent() {
+        UserId existingAgentId = UserId.generate();
+
+        ticket.assignTo(
+                existingAgentId,
+                NOW.minusSeconds(60)
+        );
+
+        UserContext agentContext =
+                new UserContext(
+                        agentId.toString(),
+                        UserRole.AGENT
+                );
+
+        AssignTicketCommand command =
+                new AssignTicketCommand(
+                        ticketId.getValue().toString(),
+                        agentId.toString()
+                );
+
+        when(userDirectory.findById(agentId))
+                .thenReturn(
+                        Optional.of(
+                                new UserSummary(
+                                        agentId,
+                                        Set.of(UserRole.AGENT)
+                                )
+                        )
+                );
+
+        when(ticketRepository.findById(ticketId))
+                .thenReturn(Optional.of(ticket));
+
+        UnauthorizedAccessException exception =
+                assertThrows(
+                        UnauthorizedAccessException.class,
+                        () -> service.assignTicket(
+                                command,
+                                agentContext
+                        )
+                );
+
+        assertEquals(
+                "Agents cannot take over tickets assigned to another agent",
+                exception.getMessage()
+        );
+
+        assertEquals(
+                existingAgentId,
+                ticket.getAssignedAgentId()
+        );
+
+        verify(
+                ticketRepository,
+                never()
+        ).save(any());
+    }
+
+    @Test
+    @DisplayName(
+            "Admin should reassign ticket from another agent"
+    )
+    void adminShouldReassignTicketFromAnotherAgent() {
+        UserId existingAgentId = UserId.generate();
+
+        ticket.assignTo(
+                existingAgentId,
+                NOW.minusSeconds(60)
+        );
+
+        UserContext adminContext =
+                new UserContext(
+                        UserId.generate().toString(),
+                        UserRole.ADMIN
+                );
+
+        AssignTicketCommand command =
+                new AssignTicketCommand(
+                        ticketId.getValue().toString(),
+                        agentId.toString()
+                );
+
+        when(userDirectory.findById(agentId))
+                .thenReturn(
+                        Optional.of(
+                                new UserSummary(
+                                        agentId,
+                                        Set.of(UserRole.AGENT)
+                                )
+                        )
+                );
+
+        when(ticketRepository.findById(ticketId))
+                .thenReturn(Optional.of(ticket));
+
+        when(ticketRepository.save(any(Ticket.class)))
+                .thenAnswer(invocation ->
+                        invocation.getArgument(0)
+                );
+
+        TicketResult result =
+                service.assignTicket(
+                        command,
+                        adminContext
+                );
+
+        assertEquals(
+                agentId.toString(),
+                result.assignedAgentId()
+        );
+
+        assertEquals(
+                agentId,
+                ticket.getAssignedAgentId()
+        );
+
+        assertEquals(
+                NOW,
+                ticket.getUpdatedAt()
+        );
+
+        verify(ticketRepository).save(ticket);
+    }
+
+
 }
