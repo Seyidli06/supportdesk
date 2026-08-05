@@ -45,11 +45,14 @@ public class TicketUseCaseConfig {
     @Bean
     public AssignTicketUseCase assignTicketUseCase(
             TicketRepository ticketRepository,
+            TicketMutationRepository
+                    ticketMutationRepository,
             UserDirectory userDirectory,
             Clock clock
     ) {
         return new AssignTicketApplicationService(
                 ticketRepository,
+                ticketMutationRepository,
                 userDirectory,
                 clock
         );

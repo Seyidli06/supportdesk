@@ -1,16 +1,16 @@
 package com.adil.supportdesk.application.ticket.assign;
 
+import com.adil.supportdesk.application.port.out.TicketMutationRepository;
 import com.adil.supportdesk.application.port.out.TicketRepository;
 import com.adil.supportdesk.application.port.out.UserDirectory;
 import com.adil.supportdesk.application.security.UnauthorizedAccessException;
 import com.adil.supportdesk.application.security.UserContext;
 import com.adil.supportdesk.application.security.UserRole;
-import com.adil.supportdesk.application.ticket.assign.AssignTicketApplicationService;
-import com.adil.supportdesk.application.ticket.assign.AssignTicketCommand;
-import com.adil.supportdesk.application.ticket.assign.InvalidAssigneeException;
 import com.adil.supportdesk.application.ticket.get.TicketResult;
 import com.adil.supportdesk.application.user.UserSummary;
 import com.adil.supportdesk.domain.ticket.model.Ticket;
+import com.adil.supportdesk.domain.ticket.model.TicketEvent;
+import com.adil.supportdesk.domain.ticket.model.TicketEventType;
 import com.adil.supportdesk.domain.ticket.model.TicketPriority;
 import com.adil.supportdesk.domain.ticket.valueobject.TicketId;
 import com.adil.supportdesk.domain.user.valueobject.UserId;
@@ -18,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -38,10 +39,16 @@ import static org.mockito.Mockito.when;
 class AssignTicketApplicationServiceTest {
 
     private static final Instant NOW =
-            Instant.parse("2026-08-02T15:00:00Z");
+            Instant.parse(
+                    "2026-08-02T15:00:00Z"
+            );
 
     @Mock
     private TicketRepository ticketRepository;
+
+    @Mock
+    private TicketMutationRepository
+            ticketMutationRepository;
 
     @Mock
     private UserDirectory userDirectory;
@@ -62,6 +69,7 @@ class AssignTicketApplicationServiceTest {
 
         service = new AssignTicketApplicationService(
                 ticketRepository,
+                ticketMutationRepository,
                 userDirectory,
                 clock
         );
@@ -85,35 +93,25 @@ class AssignTicketApplicationServiceTest {
             "Admin should assign ticket to an agent"
     )
     void adminShouldAssignTicketToAgent() {
+        UserId adminId = UserId.generate();
+
         UserContext adminContext =
                 new UserContext(
-                        UserId.generate().toString(),
+                        adminId.toString(),
                         UserRole.ADMIN
                 );
 
         AssignTicketCommand command =
                 new AssignTicketCommand(
-                        ticketId.getValue().toString(),
+                        ticketId
+                                .getValue()
+                                .toString(),
                         agentId.toString()
                 );
 
-        when(userDirectory.findById(agentId))
-                .thenReturn(
-                        Optional.of(
-                                new UserSummary(
-                                        agentId,
-                                        Set.of(UserRole.AGENT)
-                                )
-                        )
-                );
-
-        when(ticketRepository.findById(ticketId))
-                .thenReturn(Optional.of(ticket));
-
-        when(ticketRepository.save(any(Ticket.class)))
-                .thenAnswer(invocation ->
-                        invocation.getArgument(0)
-                );
+        prepareAgentUser();
+        prepareTicketLookup();
+        prepareMutationSave();
 
         TicketResult result =
                 service.assignTicket(
@@ -131,7 +129,50 @@ class AssignTicketApplicationServiceTest {
                 result.updatedAt()
         );
 
-        verify(ticketRepository).save(ticket);
+        ArgumentCaptor<TicketEvent> eventCaptor =
+                ArgumentCaptor.forClass(
+                        TicketEvent.class
+                );
+
+        verify(
+                ticketMutationRepository
+        ).saveWithEvent(
+                any(Ticket.class),
+                eventCaptor.capture()
+        );
+
+        TicketEvent capturedEvent =
+                eventCaptor.getValue();
+
+        assertEquals(
+                TicketEventType.ASSIGNMENT_CHANGED,
+                capturedEvent.type()
+        );
+
+        assertEquals(
+                ticketId,
+                capturedEvent.ticketId()
+        );
+
+        assertEquals(
+                adminId,
+                capturedEvent.actorId()
+        );
+
+        assertEquals(
+                null,
+                capturedEvent.previousValue()
+        );
+
+        assertEquals(
+                agentId.toString(),
+                capturedEvent.newValue()
+        );
+
+        assertEquals(
+                NOW,
+                capturedEvent.createdAt()
+        );
     }
 
     @Test
@@ -147,27 +188,15 @@ class AssignTicketApplicationServiceTest {
 
         AssignTicketCommand command =
                 new AssignTicketCommand(
-                        ticketId.getValue().toString(),
+                        ticketId
+                                .getValue()
+                                .toString(),
                         agentId.toString()
                 );
 
-        when(userDirectory.findById(agentId))
-                .thenReturn(
-                        Optional.of(
-                                new UserSummary(
-                                        agentId,
-                                        Set.of(UserRole.AGENT)
-                                )
-                        )
-                );
-
-        when(ticketRepository.findById(ticketId))
-                .thenReturn(Optional.of(ticket));
-
-        when(ticketRepository.save(any(Ticket.class)))
-                .thenAnswer(invocation ->
-                        invocation.getArgument(0)
-                );
+        prepareAgentUser();
+        prepareTicketLookup();
+        prepareMutationSave();
 
         TicketResult result =
                 service.assignTicket(
@@ -179,6 +208,41 @@ class AssignTicketApplicationServiceTest {
                 agentId.toString(),
                 result.assignedAgentId()
         );
+
+        ArgumentCaptor<TicketEvent> eventCaptor =
+                ArgumentCaptor.forClass(
+                        TicketEvent.class
+                );
+
+        verify(
+                ticketMutationRepository
+        ).saveWithEvent(
+                any(Ticket.class),
+                eventCaptor.capture()
+        );
+
+        TicketEvent capturedEvent =
+                eventCaptor.getValue();
+
+        assertEquals(
+                TicketEventType.ASSIGNMENT_CHANGED,
+                capturedEvent.type()
+        );
+
+        assertEquals(
+                agentId,
+                capturedEvent.actorId()
+        );
+
+        assertEquals(
+                null,
+                capturedEvent.previousValue()
+        );
+
+        assertEquals(
+                agentId.toString(),
+                capturedEvent.newValue()
+        );
     }
 
     @Test
@@ -186,7 +250,8 @@ class AssignTicketApplicationServiceTest {
             "Agent should not assign ticket to another agent"
     )
     void agentShouldNotAssignTicketToAnotherAgent() {
-        UserId anotherAgentId = UserId.generate();
+        UserId anotherAgentId =
+                UserId.generate();
 
         UserContext agentContext =
                 new UserContext(
@@ -196,7 +261,9 @@ class AssignTicketApplicationServiceTest {
 
         AssignTicketCommand command =
                 new AssignTicketCommand(
-                        ticketId.getValue().toString(),
+                        ticketId
+                                .getValue()
+                                .toString(),
                         anotherAgentId.toString()
                 );
 
@@ -209,9 +276,12 @@ class AssignTicketApplicationServiceTest {
         );
 
         verify(
-                ticketRepository,
+                ticketMutationRepository,
                 never()
-        ).save(any());
+        ).saveWithEvent(
+                any(Ticket.class),
+                any(TicketEvent.class)
+        );
     }
 
     @Test
@@ -227,7 +297,9 @@ class AssignTicketApplicationServiceTest {
 
         AssignTicketCommand command =
                 new AssignTicketCommand(
-                        ticketId.getValue().toString(),
+                        ticketId
+                                .getValue()
+                                .toString(),
                         agentId.toString()
                 );
 
@@ -240,9 +312,12 @@ class AssignTicketApplicationServiceTest {
         );
 
         verify(
-                ticketRepository,
+                ticketMutationRepository,
                 never()
-        ).save(any());
+        ).saveWithEvent(
+                any(Ticket.class),
+                any(TicketEvent.class)
+        );
     }
 
     @Test
@@ -258,19 +333,22 @@ class AssignTicketApplicationServiceTest {
 
         AssignTicketCommand command =
                 new AssignTicketCommand(
-                        ticketId.getValue().toString(),
+                        ticketId
+                                .getValue()
+                                .toString(),
                         agentId.toString()
                 );
 
-        when(userDirectory.findById(agentId))
-                .thenReturn(
-                        Optional.of(
-                                new UserSummary(
-                                        agentId,
-                                        Set.of(UserRole.USER)
-                                )
+        when(
+                userDirectory.findById(agentId)
+        ).thenReturn(
+                Optional.of(
+                        new UserSummary(
+                                agentId,
+                                Set.of(UserRole.USER)
                         )
-                );
+                )
+        );
 
         assertThrows(
                 InvalidAssigneeException.class,
@@ -281,17 +359,22 @@ class AssignTicketApplicationServiceTest {
         );
 
         verify(
-                ticketRepository,
+                ticketMutationRepository,
                 never()
-        ).save(any());
+        ).saveWithEvent(
+                any(Ticket.class),
+                any(TicketEvent.class)
+        );
     }
 
     @Test
     @DisplayName(
-            "Agent should not take over ticket assigned to another agent"
+            "Agent should not take over ticket "
+                    + "assigned to another agent"
     )
     void agentShouldNotTakeOverTicketAssignedToAnotherAgent() {
-        UserId existingAgentId = UserId.generate();
+        UserId existingAgentId =
+                UserId.generate();
 
         ticket.assignTo(
                 existingAgentId,
@@ -306,22 +389,14 @@ class AssignTicketApplicationServiceTest {
 
         AssignTicketCommand command =
                 new AssignTicketCommand(
-                        ticketId.getValue().toString(),
+                        ticketId
+                                .getValue()
+                                .toString(),
                         agentId.toString()
                 );
 
-        when(userDirectory.findById(agentId))
-                .thenReturn(
-                        Optional.of(
-                                new UserSummary(
-                                        agentId,
-                                        Set.of(UserRole.AGENT)
-                                )
-                        )
-                );
-
-        when(ticketRepository.findById(ticketId))
-                .thenReturn(Optional.of(ticket));
+        prepareAgentUser();
+        prepareTicketLookup();
 
         UnauthorizedAccessException exception =
                 assertThrows(
@@ -333,7 +408,8 @@ class AssignTicketApplicationServiceTest {
                 );
 
         assertEquals(
-                "Agents cannot take over tickets assigned to another agent",
+                "Agents cannot take over tickets "
+                        + "assigned to another agent",
                 exception.getMessage()
         );
 
@@ -343,9 +419,12 @@ class AssignTicketApplicationServiceTest {
         );
 
         verify(
-                ticketRepository,
+                ticketMutationRepository,
                 never()
-        ).save(any());
+        ).saveWithEvent(
+                any(Ticket.class),
+                any(TicketEvent.class)
+        );
     }
 
     @Test
@@ -353,42 +432,34 @@ class AssignTicketApplicationServiceTest {
             "Admin should reassign ticket from another agent"
     )
     void adminShouldReassignTicketFromAnotherAgent() {
-        UserId existingAgentId = UserId.generate();
+        UserId existingAgentId =
+                UserId.generate();
 
         ticket.assignTo(
                 existingAgentId,
                 NOW.minusSeconds(60)
         );
 
+        UserId adminId =
+                UserId.generate();
+
         UserContext adminContext =
                 new UserContext(
-                        UserId.generate().toString(),
+                        adminId.toString(),
                         UserRole.ADMIN
                 );
 
         AssignTicketCommand command =
                 new AssignTicketCommand(
-                        ticketId.getValue().toString(),
+                        ticketId
+                                .getValue()
+                                .toString(),
                         agentId.toString()
                 );
 
-        when(userDirectory.findById(agentId))
-                .thenReturn(
-                        Optional.of(
-                                new UserSummary(
-                                        agentId,
-                                        Set.of(UserRole.AGENT)
-                                )
-                        )
-                );
-
-        when(ticketRepository.findById(ticketId))
-                .thenReturn(Optional.of(ticket));
-
-        when(ticketRepository.save(any(Ticket.class)))
-                .thenAnswer(invocation ->
-                        invocation.getArgument(0)
-                );
+        prepareAgentUser();
+        prepareTicketLookup();
+        prepareMutationSave();
 
         TicketResult result =
                 service.assignTicket(
@@ -411,8 +482,137 @@ class AssignTicketApplicationServiceTest {
                 ticket.getUpdatedAt()
         );
 
-        verify(ticketRepository).save(ticket);
+        ArgumentCaptor<TicketEvent> eventCaptor =
+                ArgumentCaptor.forClass(
+                        TicketEvent.class
+                );
+
+        verify(
+                ticketMutationRepository
+        ).saveWithEvent(
+                any(Ticket.class),
+                eventCaptor.capture()
+        );
+
+        TicketEvent capturedEvent =
+                eventCaptor.getValue();
+
+        assertEquals(
+                TicketEventType.ASSIGNMENT_CHANGED,
+                capturedEvent.type()
+        );
+
+        assertEquals(
+                ticketId,
+                capturedEvent.ticketId()
+        );
+
+        assertEquals(
+                adminId,
+                capturedEvent.actorId()
+        );
+
+        assertEquals(
+                existingAgentId.toString(),
+                capturedEvent.previousValue()
+        );
+
+        assertEquals(
+                agentId.toString(),
+                capturedEvent.newValue()
+        );
+
+        assertEquals(
+                NOW,
+                capturedEvent.createdAt()
+        );
     }
 
+    @Test
+    @DisplayName(
+            "Assigning ticket to the same agent "
+                    + "should not create audit event"
+    )
+    void assigningSameAgentShouldNotCreateEvent() {
+        ticket.assignTo(
+                agentId,
+                NOW.minusSeconds(60)
+        );
 
+        Instant previousUpdatedAt =
+                ticket.getUpdatedAt();
+
+        UserContext agentContext =
+                new UserContext(
+                        agentId.toString(),
+                        UserRole.AGENT
+                );
+
+        AssignTicketCommand command =
+                new AssignTicketCommand(
+                        ticketId
+                                .getValue()
+                                .toString(),
+                        agentId.toString()
+                );
+
+        prepareAgentUser();
+        prepareTicketLookup();
+
+        TicketResult result =
+                service.assignTicket(
+                        command,
+                        agentContext
+                );
+
+        assertEquals(
+                agentId.toString(),
+                result.assignedAgentId()
+        );
+
+        assertEquals(
+                previousUpdatedAt,
+                result.updatedAt()
+        );
+
+        verify(
+                ticketMutationRepository,
+                never()
+        ).saveWithEvent(
+                any(Ticket.class),
+                any(TicketEvent.class)
+        );
+    }
+
+    private void prepareAgentUser() {
+        when(
+                userDirectory.findById(agentId)
+        ).thenReturn(
+                Optional.of(
+                        new UserSummary(
+                                agentId,
+                                Set.of(UserRole.AGENT)
+                        )
+                )
+        );
+    }
+
+    private void prepareTicketLookup() {
+        when(
+                ticketRepository.findById(ticketId)
+        ).thenReturn(
+                Optional.of(ticket)
+        );
+    }
+
+    private void prepareMutationSave() {
+        when(
+                ticketMutationRepository.saveWithEvent(
+                        any(Ticket.class),
+                        any(TicketEvent.class)
+                )
+        ).thenAnswer(invocation ->
+                invocation.getArgument(0)
+        );
+    }
 }
