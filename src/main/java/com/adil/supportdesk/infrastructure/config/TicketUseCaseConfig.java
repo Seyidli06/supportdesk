@@ -1,5 +1,6 @@
 package com.adil.supportdesk.infrastructure.config;
 
+import com.adil.supportdesk.application.port.out.TicketMutationRepository;
 import com.adil.supportdesk.application.port.out.TicketQueryRepository;
 import com.adil.supportdesk.application.port.out.TicketRepository;
 import com.adil.supportdesk.application.port.out.UserDirectory;
@@ -19,7 +20,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Clock;
-import com.adil.supportdesk.application.port.out.TicketMutationRepository;
 
 @Configuration
 public class TicketUseCaseConfig {
@@ -28,7 +28,6 @@ public class TicketUseCaseConfig {
     public Clock clock() {
         return Clock.systemUTC();
     }
-
 
     @Bean
     public CreateTicketUseCase createTicketUseCase(
@@ -73,10 +72,13 @@ public class TicketUseCaseConfig {
     public ChangeTicketStatusUseCase
     changeTicketStatusUseCase(
             TicketRepository ticketRepository,
+            TicketMutationRepository
+                    ticketMutationRepository,
             Clock clock
     ) {
         return new ChangeTicketStatusApplicationService(
                 ticketRepository,
+                ticketMutationRepository,
                 clock
         );
     }

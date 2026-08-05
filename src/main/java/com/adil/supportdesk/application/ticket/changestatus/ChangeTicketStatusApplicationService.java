@@ -1,5 +1,6 @@
 package com.adil.supportdesk.application.ticket.changestatus;
 
+import com.adil.supportdesk.application.port.out.TicketMutationRepository;
 import com.adil.supportdesk.application.port.out.TicketRepository;
 import com.adil.supportdesk.application.security.UnauthorizedAccessException;
 import com.adil.supportdesk.application.security.UserContext;
@@ -7,6 +8,9 @@ import com.adil.supportdesk.application.security.UserRole;
 import com.adil.supportdesk.application.ticket.get.TicketResult;
 import com.adil.supportdesk.domain.ticket.exception.TicketNotFoundException;
 import com.adil.supportdesk.domain.ticket.model.Ticket;
+import com.adil.supportdesk.domain.ticket.model.TicketEvent;
+import com.adil.supportdesk.domain.ticket.model.TicketEventType;
+import com.adil.supportdesk.domain.ticket.model.TicketStatus;
 import com.adil.supportdesk.domain.ticket.valueobject.TicketId;
 import com.adil.supportdesk.domain.user.valueobject.UserId;
 
@@ -18,16 +22,28 @@ public class ChangeTicketStatusApplicationService
         implements ChangeTicketStatusUseCase {
 
     private final TicketRepository ticketRepository;
+
+    private final TicketMutationRepository
+            ticketMutationRepository;
+
     private final Clock clock;
 
     public ChangeTicketStatusApplicationService(
             TicketRepository ticketRepository,
+            TicketMutationRepository
+                    ticketMutationRepository,
             Clock clock
     ) {
         this.ticketRepository = Objects.requireNonNull(
                 ticketRepository,
                 "TicketRepository cannot be null"
         );
+
+        this.ticketMutationRepository =
+                Objects.requireNonNull(
+                        ticketMutationRepository,
+                        "TicketMutationRepository cannot be null"
+                );
 
         this.clock = Objects.requireNonNull(
                 clock,
@@ -56,6 +72,10 @@ public class ChangeTicketStatusApplicationService
                 command.ticketId()
         );
 
+        UserId actorId = UserId.of(
+                userContext.userId()
+        );
+
         Ticket ticket = ticketRepository
                 .findById(ticketId)
                 .orElseThrow(() ->
@@ -69,13 +89,39 @@ public class ChangeTicketStatusApplicationService
                 userContext
         );
 
+        TicketStatus previousStatus =
+                ticket.getStatus();
+
+        Instant now = Instant.now(clock);
+
         ticket.transitionTo(
                 command.newStatus(),
-                Instant.now(clock)
+                now
         );
 
+        boolean statusUnchanged =
+                previousStatus == ticket.getStatus();
+
+        if (statusUnchanged) {
+            return TicketResult.from(ticket);
+        }
+
+        TicketEvent statusEvent =
+                TicketEvent.create(
+                        ticket.getId(),
+                        actorId,
+                        TicketEventType.STATUS_CHANGED,
+                        previousStatus.name(),
+                        ticket.getStatus().name(),
+                        now
+                );
+
         Ticket savedTicket =
-                ticketRepository.save(ticket);
+                ticketMutationRepository
+                        .saveWithEvent(
+                                ticket,
+                                statusEvent
+                        );
 
         return TicketResult.from(savedTicket);
     }
