@@ -24,6 +24,61 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 5s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    image: supportdesk:local
+    container_name: supportdesk-api
+    restart: unless-stopped
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-supportdesk_db}
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      SERVER_PORT: 8080
+
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION_SECONDS: ${JWT_EXPIRATION_SECONDS:-3600}
+
+      FLYWAY_ENABLED: "true"
+      JPA_SHOW_SQL: "false"
+      JPA_FORMAT_SQL: "false"
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+
+      OPENAPI_ENABLED: ${OPENAPI_ENABLED:-false}
+      SWAGGER_UI_ENABLED: ${SWAGGER_UI_ENABLED:-false}
+
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0 -Dfile.encoding=UTF-8 -Duser.timezone=UTC"
+
+    ports:
+      - "${APP_PORT:-8081}:8080"
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "--fail",
+          "--silent",
+          "http://localhost:8080/actuator/health/readiness"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+    stop_grace_period: 30s
 
 volumes:
   postgres_data:

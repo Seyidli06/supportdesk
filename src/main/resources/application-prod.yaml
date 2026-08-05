@@ -1,0 +1,65 @@
+﻿spring:
+  main:
+    banner-mode: "off"
+
+  datasource:
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:30000}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT_MS:5000}
+      max-lifetime: ${DB_MAX_LIFETIME_MS:1800000}
+
+  jpa:
+    show-sql: false
+
+    properties:
+      hibernate:
+        format_sql: false
+
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+server:
+  shutdown: graceful
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+  endpoint:
+    health:
+      show-details: never
+
+      probes:
+        enabled: true
+
+      group:
+        liveness:
+          include: livenessState
+
+        readiness:
+          include: readinessState,db
+
+  health:
+    livenessstate:
+      enabled: true
+
+    readinessstate:
+      enabled: true
+
+springdoc:
+  api-docs:
+    enabled: ${OPENAPI_ENABLED:false}
+
+  swagger-ui:
+    enabled: ${SWAGGER_UI_ENABLED:false}
+
+logging:
+  level:
+    root: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
