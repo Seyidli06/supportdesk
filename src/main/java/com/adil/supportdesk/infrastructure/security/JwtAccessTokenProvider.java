@@ -26,6 +26,12 @@ import java.util.stream.Collectors;
 public class JwtAccessTokenProvider
         implements AccessTokenProvider {
 
+    private static final String ROLES_CLAIM =
+            "roles";
+
+    private static final String TOKEN_VERSION_CLAIM =
+            "tokenVersion";
+
     private final SecretKey signingKey;
     private final long expirationSeconds;
     private final Clock clock;
@@ -63,7 +69,14 @@ public class JwtAccessTokenProvider
 
         String token = Jwts.builder()
                 .subject(user.id().toString())
-                .claim("roles", roles)
+                .claim(
+                        ROLES_CLAIM,
+                        roles
+                )
+                .claim(
+                        TOKEN_VERSION_CLAIM,
+                        user.tokenVersion()
+                )
                 .issuedAt(Date.from(issuedAt))
                 .expiration(Date.from(expiresAt))
                 .signWith(signingKey)
@@ -89,7 +102,8 @@ public class JwtAccessTokenProvider
 
             UserId.of(userId);
 
-            Object rolesClaim = claims.get("roles");
+            Object rolesClaim =
+                    claims.get(ROLES_CLAIM);
 
             if (!(rolesClaim instanceof List<?> roles)) {
                 return Optional.empty();
@@ -99,16 +113,36 @@ public class JwtAccessTokenProvider
                     .stream()
                     .map(Object::toString)
                     .map(UserRole::valueOf)
-                    .collect(Collectors.toUnmodifiableSet());
+                    .collect(
+                            Collectors.toUnmodifiableSet()
+                    );
 
             if (userRoles.isEmpty()) {
+                return Optional.empty();
+            }
+
+            Object tokenVersionClaim =
+                    claims.get(TOKEN_VERSION_CLAIM);
+
+            if (!(
+                    tokenVersionClaim
+                            instanceof Number tokenVersionNumber
+            )) {
+                return Optional.empty();
+            }
+
+            long tokenVersion =
+                    tokenVersionNumber.longValue();
+
+            if (tokenVersion < 0) {
                 return Optional.empty();
             }
 
             return Optional.of(
                     new JwtPrincipal(
                             userId,
-                            userRoles
+                            userRoles,
+                            tokenVersion
                     )
             );
         } catch (

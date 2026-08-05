@@ -1,5 +1,6 @@
 package com.adil.supportdesk.infrastructure.security;
 
+import com.adil.supportdesk.application.port.out.UserTokenVersionReader;
 import com.adil.supportdesk.infrastructure.ratelimit.RateLimitBucketRegistry;
 import com.adil.supportdesk.infrastructure.ratelimit.RateLimitClientKeyResolver;
 import com.adil.supportdesk.infrastructure.ratelimit.RateLimitFilter;
@@ -31,6 +32,8 @@ public class SecurityConfig {
             HttpSecurity http,
             ObjectProvider<JwtAccessTokenProvider>
                     tokenProviderObjectProvider,
+            ObjectProvider<UserTokenVersionReader>
+                    tokenVersionReaderObjectProvider,
             ObjectProvider<RateLimitBucketRegistry>
                     bucketRegistryObjectProvider,
             ObjectProvider<RateLimitClientKeyResolver>
@@ -99,10 +102,19 @@ public class SecurityConfig {
                 tokenProviderObjectProvider
                         .getIfAvailable();
 
-        if (tokenProvider != null) {
+        UserTokenVersionReader tokenVersionReader =
+                tokenVersionReaderObjectProvider
+                        .getIfAvailable();
+
+        boolean jwtAuthenticationEnabled =
+                tokenProvider != null
+                        && tokenVersionReader != null;
+
+        if (jwtAuthenticationEnabled) {
             http.addFilterBefore(
                     new JwtAuthenticationFilter(
-                            tokenProvider
+                            tokenProvider,
+                            tokenVersionReader
                     ),
                     UsernamePasswordAuthenticationFilter
                             .class
@@ -141,7 +153,7 @@ public class SecurityConfig {
                             objectMapper
                     );
 
-            if (tokenProvider != null) {
+            if (jwtAuthenticationEnabled) {
                 http.addFilterAfter(
                         rateLimitFilter,
                         JwtAuthenticationFilter.class

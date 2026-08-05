@@ -21,10 +21,16 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
+import com.adil.supportdesk.application.port.out.UserTokenVersionReader;
+
+import java.util.Objects;
+import java.util.OptionalLong;
+
 @Repository
 public class JpaUserAccountRepositoryAdapter
         implements UserAccountRepository,
-        UserAdministrationRepository {
+        UserAdministrationRepository,
+        UserTokenVersionReader {
 
     private final SpringDataUserJpaRepository repository;
 
@@ -56,6 +62,30 @@ public class JpaUserAccountRepositoryAdapter
         return repository
                 .findById(userId.value())
                 .map(this::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OptionalLong findTokenVersionById(
+            UserId userId
+    ) {
+        Objects.requireNonNull(
+                userId,
+                "UserId cannot be null"
+        );
+
+        Optional<Long> tokenVersion =
+                repository.findTokenVersionById(
+                        userId.value()
+                );
+
+        if (tokenVersion.isEmpty()) {
+            return OptionalLong.empty();
+        }
+
+        return OptionalLong.of(
+                tokenVersion.get()
+        );
     }
 
     @Override
