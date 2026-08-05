@@ -6,6 +6,8 @@ import com.adil.supportdesk.application.port.out.TicketRepository;
 import com.adil.supportdesk.application.port.out.UserDirectory;
 import com.adil.supportdesk.application.ticket.assign.AssignTicketApplicationService;
 import com.adil.supportdesk.application.ticket.assign.AssignTicketUseCase;
+import com.adil.supportdesk.application.ticket.changepriority.ChangeTicketPriorityApplicationService;
+import com.adil.supportdesk.application.ticket.changepriority.ChangeTicketPriorityUseCase;
 import com.adil.supportdesk.application.ticket.changestatus.ChangeTicketStatusApplicationService;
 import com.adil.supportdesk.application.ticket.changestatus.ChangeTicketStatusUseCase;
 import com.adil.supportdesk.application.ticket.comment.AddCommentApplicationService;
@@ -87,8 +89,24 @@ public class TicketUseCaseConfig {
     }
 
     @Bean
+    public ChangeTicketPriorityUseCase
+    changeTicketPriorityUseCase(
+            TicketRepository ticketRepository,
+            TicketMutationRepository
+                    ticketMutationRepository,
+            Clock clock
+    ) {
+        return new ChangeTicketPriorityApplicationService(
+                ticketRepository,
+                ticketMutationRepository,
+                clock
+        );
+    }
+
+    @Bean
     public GetTicketUseCase getTicketUseCase(
-            TicketQueryRepository ticketQueryRepository
+            TicketQueryRepository
+                    ticketQueryRepository
     ) {
         return new GetTicketApplicationService(
                 ticketQueryRepository
@@ -97,7 +115,8 @@ public class TicketUseCaseConfig {
 
     @Bean
     public ListTicketsUseCase listTicketsUseCase(
-            TicketQueryRepository ticketQueryRepository
+            TicketQueryRepository
+                    ticketQueryRepository
     ) {
         return new ListTicketsApplicationService(
                 ticketQueryRepository

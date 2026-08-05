@@ -35,6 +35,7 @@ import com.adil.supportdesk.application.ticket.changestatus.ChangeTicketStatusUs
 
 import com.adil.supportdesk.application.ticket.get.GetTicketUseCase;
 import com.adil.supportdesk.application.ticket.query.ListTicketsUseCase;
+import com.adil.supportdesk.application.ticket.changepriority.ChangeTicketPriorityUseCase;
 
 @WebMvcTest(TicketController.class)
 class TicketControllerIntegrationTest {
@@ -53,6 +54,10 @@ class TicketControllerIntegrationTest {
 
     @MockBean
     private AssignTicketUseCase assignTicketUseCase;
+
+    @MockBean
+    private ChangeTicketPriorityUseCase
+            changeTicketPriorityUseCase;
 
     private static final String USER_ID =
             "11111111-1111-1111-1111-111111111111";
