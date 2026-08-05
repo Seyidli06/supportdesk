@@ -19,6 +19,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Clock;
+import com.adil.supportdesk.application.port.out.TicketMutationRepository;
 
 @Configuration
 public class TicketUseCaseConfig {
@@ -28,13 +29,15 @@ public class TicketUseCaseConfig {
         return Clock.systemUTC();
     }
 
+
     @Bean
     public CreateTicketUseCase createTicketUseCase(
-            TicketRepository ticketRepository,
+            TicketMutationRepository
+                    ticketMutationRepository,
             Clock clock
     ) {
         return new CreateTicketApplicationService(
-                ticketRepository,
+                ticketMutationRepository,
                 clock
         );
     }

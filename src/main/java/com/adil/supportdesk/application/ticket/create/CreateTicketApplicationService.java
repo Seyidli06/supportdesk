@@ -1,9 +1,11 @@
 package com.adil.supportdesk.application.ticket.create;
 
-import com.adil.supportdesk.application.port.out.TicketRepository;
+import com.adil.supportdesk.application.port.out.TicketMutationRepository;
 import com.adil.supportdesk.application.security.UserContext;
 import com.adil.supportdesk.application.ticket.get.TicketResult;
 import com.adil.supportdesk.domain.ticket.model.Ticket;
+import com.adil.supportdesk.domain.ticket.model.TicketEvent;
+import com.adil.supportdesk.domain.ticket.model.TicketEventType;
 import com.adil.supportdesk.domain.ticket.valueobject.TicketId;
 import com.adil.supportdesk.domain.user.valueobject.UserId;
 
@@ -14,17 +16,26 @@ import java.util.Objects;
 public class CreateTicketApplicationService
         implements CreateTicketUseCase {
 
-    private final TicketRepository ticketRepository;
+    private final TicketMutationRepository
+            ticketMutationRepository;
+
     private final Clock clock;
 
     public CreateTicketApplicationService(
-            TicketRepository ticketRepository,
+            TicketMutationRepository
+                    ticketMutationRepository,
             Clock clock
     ) {
-        this.ticketRepository = Objects.requireNonNull(
-                ticketRepository
+        this.ticketMutationRepository =
+                Objects.requireNonNull(
+                        ticketMutationRepository,
+                        "TicketMutationRepository cannot be null"
+                );
+
+        this.clock = Objects.requireNonNull(
+                clock,
+                "Clock cannot be null"
         );
-        this.clock = Objects.requireNonNull(clock);
     }
 
     @Override
@@ -36,6 +47,7 @@ public class CreateTicketApplicationService
                 command,
                 "Command cannot be null"
         );
+
         Objects.requireNonNull(
                 userContext,
                 "UserContext cannot be null"
@@ -56,7 +68,22 @@ public class CreateTicketApplicationService
                 now
         );
 
-        Ticket savedTicket = ticketRepository.save(ticket);
+        TicketEvent creationEvent =
+                TicketEvent.create(
+                        ticket.getId(),
+                        requesterId,
+                        TicketEventType.TICKET_CREATED,
+                        null,
+                        ticket.getStatus().name(),
+                        now
+                );
+
+        Ticket savedTicket =
+                ticketMutationRepository
+                        .saveWithEvent(
+                                ticket,
+                                creationEvent
+                        );
 
         return TicketResult.from(savedTicket);
     }
