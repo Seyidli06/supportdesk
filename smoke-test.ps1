@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $baseUrl = "http://127.0.0.1:8081/api/v1"
-$apiDocsUrl = "http://127.0.0.1:8081/v3/api-docs"
+$readinessUrl = "http://127.0.0.1:8081/actuator/health/readiness"
 $password = "Password123!"
 $suffix = [guid]::NewGuid().ToString("N").Substring(0, 8)
 
@@ -193,7 +193,7 @@ try {
 
     $healthResponse = Invoke-Api `
         -Method GET `
-        -Url $apiDocsUrl `
+        -Url $readinessUrl `
         -ExpectedStatus @(200)
 
     Assert-True `
@@ -635,7 +635,25 @@ VALUES ('$adminId', 'ADMIN');
         "Agent changed status to IN_PROGRESS"
 
 
-    Write-Step "16. AGENT COMMENT"
+    Write-Step "16. AGENT CHANGES PRIORITY"
+
+    $priorityResponse = Invoke-Api `
+        -Method PATCH `
+        -Url "$baseUrl/tickets/$ticketId/priority" `
+        -Headers $agentHeaders `
+        -Body @{
+            priority = "URGENT"
+        } `
+        -ExpectedStatus @(200)
+
+    $urgentTicket = $priorityResponse.Json
+
+    Assert-True `
+        ([string]$urgentTicket.priority -eq "URGENT") `
+        "Agent changed priority to URGENT"
+
+
+    Write-Step "17. AGENT COMMENT"
 
     $agentCommentText =
         "Comment added by assigned AGENT from PowerShell smoke test."
@@ -668,7 +686,7 @@ VALUES ('$adminId', 'ADMIN');
         "AGENT comment content is correct"
 
 
-    Write-Step "17. ADMIN TICKET LIST"
+    Write-Step "18. ADMIN TICKET LIST"
 
     $adminListResponse = Invoke-Api `
         -Method GET `
@@ -688,7 +706,56 @@ VALUES ('$adminId', 'ADMIN');
         "Ticket is visible in ADMIN list"
 
 
-    Write-Step "18. FINAL VERIFICATION"
+    Write-Step "19. TICKET EVENT HISTORY"
+
+    $eventsResponse = Invoke-Api `
+        -Method GET `
+        -Url "$baseUrl/tickets/$ticketId/events" `
+        -Headers $userHeaders `
+        -ExpectedStatus @(200)
+
+    $events = @($eventsResponse.Json)
+
+    Assert-True `
+        ($events.Count -ge 6) `
+        "Ticket audit history contains expected events"
+
+    $eventTypes = @(
+        $events |
+            ForEach-Object {
+                [string]$_.type
+            }
+    )
+
+    foreach (
+        $requiredEventType in @(
+            "TICKET_CREATED",
+            "COMMENT_ADDED",
+            "ASSIGNMENT_CHANGED",
+            "STATUS_CHANGED",
+            "PRIORITY_CHANGED"
+        )
+    ) {
+        Assert-True `
+            ($eventTypes -contains $requiredEventType) `
+            "Audit history contains $requiredEventType"
+    }
+
+    $priorityEvents = @(
+        $events |
+            Where-Object {
+                [string]$_.type -eq "PRIORITY_CHANGED" -and
+                [string]$_.previousValue -eq "HIGH" -and
+                [string]$_.newValue -eq "URGENT"
+            }
+    )
+
+    Assert-True `
+        ($priorityEvents.Count -ge 1) `
+        "Priority audit contains HIGH to URGENT transition"
+
+
+    Write-Step "20. FINAL VERIFICATION"
 
     $finalResponse = Invoke-Api `
         -Method GET `
@@ -701,6 +768,10 @@ VALUES ('$adminId', 'ADMIN');
     Assert-True `
         ([string]$finalTicket.status -eq "IN_PROGRESS") `
         "Final ticket status is IN_PROGRESS"
+
+    Assert-True `
+        ([string]$finalTicket.priority -eq "URGENT") `
+        "Final ticket priority is URGENT"
 
     Assert-True `
         ([string]$finalTicket.assignedAgentId -eq $agentId) `
