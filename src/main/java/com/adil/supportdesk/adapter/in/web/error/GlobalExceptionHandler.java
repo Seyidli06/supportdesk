@@ -5,10 +5,12 @@ import com.adil.supportdesk.application.auth.InvalidCredentialsException;
 import com.adil.supportdesk.application.security.UnauthorizedAccessException;
 import com.adil.supportdesk.application.ticket.assign.InvalidAssigneeException;
 import com.adil.supportdesk.application.user.UserNotFoundException;
+import com.adil.supportdesk.application.user.management.SelfAdminRoleRemovalException;
 import com.adil.supportdesk.domain.ticket.exception.DomainException;
 import com.adil.supportdesk.domain.ticket.exception.InvalidStatusTransitionException;
 import com.adil.supportdesk.domain.ticket.exception.TicketClosedException;
 import com.adil.supportdesk.domain.ticket.exception.TicketNotFoundException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -19,7 +21,6 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
-import com.adil.supportdesk.application.user.management.SelfAdminRoleRemovalException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -87,6 +88,57 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(SelfAdminRoleRemovalException.class)
+    public ProblemDetail handleSelfAdminRoleRemoval(
+            SelfAdminRoleRemovalException exception
+    ) {
+        return createProblem(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                "Admin Role Removal Rejected",
+                exception.getMessage(),
+                "self-admin-role-removal"
+        );
+    }
+
+    @ExceptionHandler(EmailAlreadyExistsException.class)
+    public ProblemDetail handleEmailAlreadyExists(
+            EmailAlreadyExistsException exception
+    ) {
+        return createProblem(
+                HttpStatus.CONFLICT,
+                "Email Already Exists",
+                exception.getMessage(),
+                "email-already-exists"
+        );
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ProblemDetail handleInvalidCredentials(
+            InvalidCredentialsException exception
+    ) {
+        return createProblem(
+                HttpStatus.UNAUTHORIZED,
+                "Invalid Credentials",
+                exception.getMessage(),
+                "invalid-credentials"
+        );
+    }
+
+    @ExceptionHandler(
+            OptimisticLockingFailureException.class
+    )
+    public ProblemDetail handleOptimisticLockingFailure(
+            OptimisticLockingFailureException exception
+    ) {
+        return createProblem(
+                HttpStatus.CONFLICT,
+                "Concurrent Modification",
+                "The resource was modified by another request. "
+                        + "Reload it and try again.",
+                "concurrent-modification"
+        );
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail handleIllegalArgument(
             IllegalArgumentException exception
@@ -123,31 +175,20 @@ public class GlobalExceptionHandler {
         problemDetail.setTitle("Bad Request");
         problemDetail.setType(
                 URI.create(
-                        "https://supportdesk.com/errors/validation"
+                        "https://supportdesk.com/errors/"
+                                + "validation"
                 )
         );
-        problemDetail.setProperty("errors", errors);
+        problemDetail.setProperty(
+                "errors",
+                errors
+        );
         problemDetail.setProperty(
                 "timestamp",
                 Instant.now()
         );
 
         return problemDetail;
-    }
-
-
-    @ExceptionHandler(
-            SelfAdminRoleRemovalException.class
-    )
-    public ProblemDetail handleSelfAdminRoleRemoval(
-            SelfAdminRoleRemovalException exception
-    ) {
-        return createProblem(
-                HttpStatus.UNPROCESSABLE_ENTITY,
-                "Admin Role Removal Rejected",
-                exception.getMessage(),
-                "self-admin-role-removal"
-        );
     }
 
     private ProblemDetail createProblem(
@@ -176,29 +217,4 @@ public class GlobalExceptionHandler {
 
         return problemDetail;
     }
-    @ExceptionHandler(EmailAlreadyExistsException.class)
-    public ProblemDetail handleEmailAlreadyExists(
-            EmailAlreadyExistsException exception
-    ) {
-        return createProblem(
-                HttpStatus.CONFLICT,
-                "Email Already Exists",
-                exception.getMessage(),
-                "email-already-exists"
-        );
-    }
-
-    @ExceptionHandler(InvalidCredentialsException.class)
-    public ProblemDetail handleInvalidCredentials(
-            InvalidCredentialsException exception
-    ) {
-        return createProblem(
-                HttpStatus.UNAUTHORIZED,
-                "Invalid Credentials",
-                exception.getMessage(),
-                "invalid-credentials"
-        );
-    }
-
-
 }
