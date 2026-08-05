@@ -1,5 +1,6 @@
 package com.adil.supportdesk.infrastructure.config;
 
+import com.adil.supportdesk.application.port.out.TicketEventRepository;
 import com.adil.supportdesk.application.port.out.TicketMutationRepository;
 import com.adil.supportdesk.application.port.out.TicketQueryRepository;
 import com.adil.supportdesk.application.port.out.TicketRepository;
@@ -14,6 +15,8 @@ import com.adil.supportdesk.application.ticket.comment.AddCommentApplicationServ
 import com.adil.supportdesk.application.ticket.comment.AddCommentUseCase;
 import com.adil.supportdesk.application.ticket.create.CreateTicketApplicationService;
 import com.adil.supportdesk.application.ticket.create.CreateTicketUseCase;
+import com.adil.supportdesk.application.ticket.event.GetTicketEventsApplicationService;
+import com.adil.supportdesk.application.ticket.event.GetTicketEventsUseCase;
 import com.adil.supportdesk.application.ticket.get.GetTicketApplicationService;
 import com.adil.supportdesk.application.ticket.get.GetTicketUseCase;
 import com.adil.supportdesk.application.ticket.query.ListTicketsApplicationService;
@@ -110,6 +113,19 @@ public class TicketUseCaseConfig {
     ) {
         return new GetTicketApplicationService(
                 ticketQueryRepository
+        );
+    }
+
+    @Bean
+    public GetTicketEventsUseCase
+    getTicketEventsUseCase(
+            GetTicketUseCase getTicketUseCase,
+            TicketEventRepository
+                    ticketEventRepository
+    ) {
+        return new GetTicketEventsApplicationService(
+                getTicketUseCase,
+                ticketEventRepository
         );
     }
 
