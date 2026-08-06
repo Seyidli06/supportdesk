@@ -935,13 +935,6 @@ The runtime Docker image:
 - Uses a readiness health check
 - Supports graceful container shutdown
 
-Do not commit:
-
-- `.env`
-- Production database passwords
-- JWT secrets
-- Access tokens
-- Generated credentials
 
 ## Release
 
