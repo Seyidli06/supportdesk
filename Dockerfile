@@ -3,14 +3,14 @@ FROM maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /workspace
 
 COPY pom.xml .
-
-RUN mvn --batch-mode --no-transfer-progress \
-    -DskipTests dependency:go-offline
-
 COPY src ./src
 
-RUN mvn --batch-mode --no-transfer-progress \
-    -DskipTests clean package
+RUN mvn \
+    --batch-mode \
+    --no-transfer-progress \
+    -Dmaven.test.skip=true \
+    -Dmaven.wagon.http.retryHandler.count=5 \
+    clean package
 
 FROM eclipse-temurin:21-jre-jammy AS runtime
 
@@ -33,7 +33,7 @@ WORKDIR /app
 
 COPY \
     --from=build \
-    /workspace/target/supportdesk-0.0.1-SNAPSHOT.jar \
+    /workspace/target/supportdesk-1.0.0.jar \
     /app/app.jar
 
 RUN chown --recursive supportdesk:supportdesk /app
