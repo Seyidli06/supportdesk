@@ -1,55 +1,117 @@
 # SupportDesk
 
-![Java](https://img.shields.io/badge/Java-21-orange)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.2-6DB33F)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1)
-![Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-blueviolet)
-![Tests](https://img.shields.io/badge/Tests-88%20passing-brightgreen)
+[![Java](https://img.shields.io/badge/Java-21-orange)](https://www.oracle.com/java/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.2-6DB33F)](https://spring.io/projects/spring-boot)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1)](https://www.postgresql.org/)
+[![Release](https://img.shields.io/badge/release-v1.0.0-blue)](https://github.com/Seyidli06/supportdesk/releases/tag/v1.0.0)
+[![CI](https://github.com/Seyidli06/supportdesk/actions/workflows/ci.yml/badge.svg)](https://github.com/Seyidli06/supportdesk/actions/workflows/ci.yml)
+[![Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-blueviolet)](#architecture)
 
-SupportDesk is a secure REST API for managing customer-support tickets, users, roles, assignments, comments, and ticket lifecycles.
+SupportDesk is a production-ready customer-support ticket REST API built with Java 21, Spring Boot, PostgreSQL, and Clean Architecture.
 
-The project is built with Java 21 and Spring Boot using Clean Architecture principles. It includes JWT authentication, role-based authorization, PostgreSQL persistence, Flyway migrations, OpenAPI documentation, request rate limiting, and automated tests.
+The application manages authentication, users, roles, tickets, assignments, comments, ticket status and priority changes, and complete ticket audit history.
+
+## Current Release
+
+Stable version:
+
+```text
+v1.0.0
+```
+
+Main production capabilities:
+
+- JWT authentication and role-based authorization
+- `USER`, `AGENT`, and `ADMIN` roles
+- Ticket creation, filtering, pagination, assignment, and comments
+- Controlled ticket status and priority changes
+- Persistent ticket event and audit history
+- Token-version-based stale JWT invalidation
+- Optimistic locking and HTTP `409 Conflict` handling
+- RFC 7807 Problem Details error responses
+- Bucket4j request rate limiting
+- PostgreSQL persistence and Flyway migrations
+- Docker production deployment
+- Actuator liveness and readiness probes
+- GitHub Actions continuous integration
+- Automated integration and production smoke tests
 
 ## Table of Contents
 
 - [Features](#features)
 - [Technology Stack](#technology-stack)
 - [Architecture](#architecture)
-- [Project Structure](#project-structure)
 - [Roles and Permissions](#roles-and-permissions)
 - [Ticket Lifecycle](#ticket-lifecycle)
+- [Ticket Audit History](#ticket-audit-history)
 - [API Endpoints](#api-endpoints)
-- [Getting Started](#getting-started)
+- [Getting Started with Docker](#getting-started-with-docker)
+- [Local Development](#local-development)
 - [Environment Variables](#environment-variables)
+- [Health Checks](#health-checks)
+- [API Documentation](#api-documentation)
 - [Administrator Bootstrap](#administrator-bootstrap)
-- [Request Examples](#request-examples)
-- [Rate Limiting](#rate-limiting)
-- [Error Responses](#error-responses)
 - [Testing](#testing)
-- [Smoke Tests](#smoke-tests)
-- [Database Model](#database-model)
+- [Database Migrations](#database-migrations)
+- [Production Notes](#production-notes)
+- [Release](#release)
 
 ## Features
 
+### Authentication and Security
+
 - User registration and login
+- Password hashing through Spring Security
 - Stateless JWT authentication
-- Role-based authorization
-- User, agent, and administrator roles
-- Ticket creation and retrieval
-- Ticket filtering and pagination
-- Ticket assignment to agents
-- Ticket status management
-- Ticket comments
-- Administrative user management
-- PostgreSQL persistence
-- Flyway database migrations
-- Optimistic locking for ticket updates
-- Problem Details error responses
-- Bucket4j request rate limiting
-- Caffeine-backed in-memory bucket cache
-- OpenAPI documentation and Swagger UI
-- Unit and integration tests
-- PowerShell smoke tests
+- Configurable JWT expiration
+- JWT token-version validation
+- Automatic invalidation of old JWTs after role changes
+- Role-based endpoint and business-rule authorization
+- Public health-check endpoints
+- Configurable request rate limiting
+- Rate-limit buckets cached with Caffeine
+
+### Ticket Management
+
+- Create tickets
+- Retrieve ticket details
+- List visible tickets
+- Filter tickets by status and priority
+- Paginated ticket queries
+- Assign tickets to agents
+- Prevent unauthorized agent assignment takeover
+- Add ticket comments
+- Change ticket status
+- Change ticket priority
+- Enforce valid ticket lifecycle transitions
+- Detect concurrent updates with optimistic locking
+
+### Audit History
+
+Ticket mutations generate persistent audit events for:
+
+- Ticket creation
+- Assignment changes
+- Status changes
+- Priority changes
+- Added comments
+
+Ticket state and its corresponding event are persisted atomically in the same transaction.
+
+### Production Readiness
+
+- Multi-stage Docker image
+- Non-root runtime user
+- PostgreSQL Docker service
+- Persistent PostgreSQL volume
+- Production Spring profile
+- Graceful shutdown
+- HikariCP production pool configuration
+- Database-backed readiness check
+- Kubernetes-compatible liveness and readiness probes
+- Swagger and OpenAPI disabled by default in production
+- Automated Maven verification
+- Automated production Docker image build
 
 ## Technology Stack
 
@@ -60,24 +122,27 @@ The project is built with Java 21 and Spring Boot using Clean Architecture princ
 | Spring Web MVC | REST API |
 | Spring Security | Authentication and authorization |
 | Spring Data JPA | Persistence |
-| PostgreSQL | Relational database |
-| Flyway | Database migrations |
+| Hibernate | ORM and optimistic locking |
+| PostgreSQL 16 | Relational database |
+| Flyway | Versioned database migrations |
 | JJWT 0.12.6 | JWT creation and validation |
 | Bucket4j 8.18.0 | Request rate limiting |
-| Caffeine 3.2.4 | In-memory rate-limit bucket cache |
-| Springdoc OpenAPI 2.6.0 | Swagger UI and OpenAPI documentation |
+| Caffeine 3.2.4 | Rate-limit bucket cache |
+| Springdoc OpenAPI 2.6.0 | OpenAPI and Swagger UI |
+| Spring Boot Actuator | Health and availability probes |
 | Maven Wrapper | Build automation |
-| JUnit 5 | Automated testing |
-| Docker | Local PostgreSQL environment |
+| JUnit 5 | Unit and integration testing |
+| Docker | Containerized deployment |
+| GitHub Actions | Continuous integration |
 
 ## Architecture
 
-The project follows Clean Architecture and dependency-inversion principles.
+SupportDesk follows Clean Architecture and dependency-inversion principles.
 
 ```mermaid
 flowchart LR
-    Client[API Client] --> Web[Inbound Web Adapters]
-    Web --> Application[Application Use Cases]
+    Client[API Client] --> Inbound[Inbound Web Adapters]
+    Inbound --> Application[Application Use Cases]
     Application --> Domain[Domain Model]
     Application --> Ports[Outbound Ports]
 
@@ -88,142 +153,103 @@ flowchart LR
 
 ### Domain Layer
 
-The `domain` layer contains the core business model and business rules.
-
-It includes:
+The domain layer contains framework-independent business rules:
 
 - Ticket aggregate
 - Ticket comments
 - Ticket statuses
 - Ticket priorities
+- Ticket events
 - Value objects
-- Ticket-status transition policy
+- Status-transition rules
 - Domain exceptions
 
-The domain layer does not depend on Spring, JPA, controllers, or infrastructure classes.
+The domain layer does not depend on Spring, JPA, controllers, or infrastructure components.
 
 ### Application Layer
 
-The `application` layer contains use cases and orchestration logic.
-
-It includes:
+The application layer contains use cases and orchestration logic:
 
 - Authentication
 - Ticket creation
 - Ticket assignment
 - Ticket comments
 - Ticket status changes
-- Ticket queries
-- User administration
-- Application security context
+- Ticket priority changes
+- Ticket event queries
+- Ticket listing and retrieval
+- User and role administration
+- Security context and authorization rules
 - Outbound port interfaces
 
 ### Inbound Adapters
 
-The `adapter.in` layer exposes application use cases to external clients.
-
-It includes:
+The inbound web adapters contain:
 
 - REST controllers
 - Request DTOs
 - Response DTOs
+- Request validation
 - Global exception handling
+- Problem Details responses
 
 ### Outbound Adapters
 
-The `adapter.out` layer implements outbound application ports.
-
-It includes:
+The outbound persistence adapters contain:
 
 - JPA entities
 - Spring Data repositories
 - Persistence mappers
 - Repository adapters
+- Atomic ticket and event persistence
 
 ### Infrastructure Layer
 
-The `infrastructure` layer contains framework-specific and technical components.
-
-It includes:
+The infrastructure layer contains:
 
 - Spring bean configuration
-- JWT authentication
-- Password hashing
+- JWT authentication filter
+- Password encoder
 - Spring Security configuration
 - Rate limiting
-
-## Project Structure
-
-```text
-src
-├── main
-│   ├── java/com/adil/supportdesk
-│   │   ├── adapter
-│   │   │   ├── in/web
-│   │   │   │   ├── auth
-│   │   │   │   │   └── dto
-│   │   │   │   ├── error
-│   │   │   │   ├── ticket
-│   │   │   │   │   └── dto
-│   │   │   │   └── user
-│   │   │   │       └── dto
-│   │   │   └── out/persistence
-│   │   │       ├── ticket
-│   │   │       └── user
-│   │   ├── application
-│   │   │   ├── auth
-│   │   │   ├── port/out
-│   │   │   ├── security
-│   │   │   ├── ticket
-│   │   │   │   ├── assign
-│   │   │   │   ├── changestatus
-│   │   │   │   ├── comment
-│   │   │   │   ├── create
-│   │   │   │   ├── get
-│   │   │   │   └── query
-│   │   │   └── user/management
-│   │   ├── domain
-│   │   │   ├── ticket
-│   │   │   └── user
-│   │   ├── infrastructure
-│   │   │   ├── config
-│   │   │   ├── ratelimit
-│   │   │   └── security
-│   │   └── SupportDeskApplication.java
-│   └── resources
-│       ├── application.yaml
-│       └── db/migration
-└── test
-    ├── java/com/adil/supportdesk
-    └── resources
-```
+- Actuator and production configuration
 
 ## Roles and Permissions
 
-The application supports three roles:
+The application supports three roles.
 
-| Role | Permissions |
+| Role | Main permissions |
 |---|---|
-| `USER` | Register, log in, create tickets, view permitted tickets, and add comments |
-| `AGENT` | View permitted tickets, assign tickets to themselves, add comments, and update assigned-ticket statuses |
-| `ADMIN` | Manage users and roles, assign tickets, view tickets, add comments, and update ticket statuses |
+| `USER` | Register, log in, create tickets, view permitted tickets, add comments, and view permitted ticket events |
+| `AGENT` | View permitted tickets, self-assign eligible tickets, update assigned tickets, add comments, and view ticket events |
+| `ADMIN` | Manage users and roles, view all tickets, assign tickets, update ticket status and priority, add comments, and view audit events |
 
 ### Assignment Rules
 
 - Only an `AGENT` or `ADMIN` can assign a ticket.
-- An agent can assign a ticket only to themselves.
-- An administrator can assign a ticket to any user with the `AGENT` role.
-- A ticket cannot be assigned to a user who does not have the `AGENT` role.
+- An agent can assign an eligible ticket only to themselves.
+- An agent cannot take over a ticket assigned to another agent.
+- An administrator can assign a ticket to a user with the `AGENT` role.
+- A ticket cannot be assigned to a user without the `AGENT` role.
 
-### Status Management Rules
+### Status Rules
 
 - A `USER` cannot change ticket status.
-- An `AGENT` can change the status only of tickets assigned to them.
+- An `AGENT` can change the status only of a ticket assigned to them.
 - An `ADMIN` can change the status of any ticket.
+- Invalid status transitions are rejected.
+
+### Priority Rules
+
+- A `USER` cannot change ticket priority.
+- An `AGENT` can change priority only for a ticket assigned to them.
+- An `ADMIN` can change priority for any ticket.
 
 ### User Administration Rules
 
 All `/api/v1/users/**` endpoints require the `ADMIN` role.
+
+When an administrator changes a user's roles, the user's token version is incremented. Previously issued JWTs for that user become invalid.
 
 An administrator cannot remove their own final administrator access through the role-management API.
 
@@ -250,7 +276,7 @@ OPEN
         └── CLOSED
 ```
 
-`CLOSED` is a terminal state.
+`CLOSED` is a terminal status.
 
 Available priorities:
 
@@ -259,9 +285,41 @@ Available priorities:
 - `HIGH`
 - `URGENT`
 
+## Ticket Audit History
+
+Every meaningful ticket mutation creates a `ticket_events` record.
+
+Supported event types:
+
+| Event type | Meaning |
+|---|---|
+| `TICKET_CREATED` | A new ticket was created |
+| `ASSIGNMENT_CHANGED` | The assigned agent changed |
+| `STATUS_CHANGED` | The ticket status changed |
+| `PRIORITY_CHANGED` | The ticket priority changed |
+| `COMMENT_ADDED` | A comment was added |
+
+Event history can be retrieved through:
+
+```text
+GET /api/v1/tickets/{ticketId}/events
+```
+
+Each event can contain:
+
+- Event ID
+- Ticket ID
+- Actor ID
+- Event type
+- Previous value
+- New value
+- Creation timestamp
+
+Ticket mutation and audit-event persistence are executed atomically. If event persistence fails, the ticket mutation is rolled back.
+
 ## API Endpoints
 
-The default API prefix is:
+The API prefix is:
 
 ```text
 /api/v1
@@ -271,7 +329,7 @@ The default API prefix is:
 
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `POST` | `/api/v1/auth/register` | Public | Register a new user |
+| `POST` | `/api/v1/auth/register` | Public | Register a user |
 | `POST` | `/api/v1/auth/login` | Public | Authenticate and receive a JWT |
 
 ### Tickets
@@ -280,19 +338,27 @@ The default API prefix is:
 |---|---|---|---|
 | `POST` | `/api/v1/tickets` | Authenticated | Create a ticket |
 | `GET` | `/api/v1/tickets` | Authenticated | List visible tickets |
-| `GET` | `/api/v1/tickets/{ticketId}` | Authenticated | Get ticket details |
+| `GET` | `/api/v1/tickets/{ticketId}` | Authenticated with access | Get ticket details |
 | `PATCH` | `/api/v1/tickets/{ticketId}/assignment` | Agent or Admin | Assign a ticket |
-| `POST` | `/api/v1/tickets/{ticketId}/comments` | Authenticated | Add a comment |
-| `PATCH` | `/api/v1/tickets/{ticketId}/status` | Assigned Agent or Admin | Change ticket status |
+| `POST` | `/api/v1/tickets/{ticketId}/comments` | Authenticated with access | Add a comment |
+| `PATCH` | `/api/v1/tickets/{ticketId}/status` | Assigned Agent or Admin | Change status |
+| `PATCH` | `/api/v1/tickets/{ticketId}/priority` | Assigned Agent or Admin | Change priority |
+| `GET` | `/api/v1/tickets/{ticketId}/events` | Authenticated with access | Get ticket event history |
 
 Ticket-list query parameters:
 
 | Parameter | Required | Default |
-|---|---|---|
-| `status` | No | All statuses |
-| `priority` | No | All priorities |
+|---|---:|---|
+| `status` | No | All visible statuses |
+| `priority` | No | All visible priorities |
 | `page` | No | `0` |
 | `size` | No | `20` |
+
+Example:
+
+```text
+GET /api/v1/tickets?status=OPEN&priority=HIGH&page=0&size=20
+```
 
 ### User Administration
 
@@ -305,13 +371,117 @@ Ticket-list query parameters:
 User-list query parameters:
 
 | Parameter | Required | Default |
-|---|---|---|
+|---|---:|---|
 | `role` | No | All roles |
 | `email` | No | All emails |
 | `page` | No | `0` |
 | `size` | No | `20` |
 
-## Getting Started
+## Getting Started with Docker
+
+### Prerequisites
+
+Install:
+
+- Docker Desktop
+- Git
+- PowerShell or Windows Terminal
+
+### Clone the Repository
+
+```powershell
+git clone https://github.com/Seyidli06/supportdesk.git
+
+Set-Location ".\supportdesk"
+```
+
+### Create the Environment File
+
+Generate a secure JWT secret:
+
+```powershell
+$secretBytes = New-Object byte[] 64
+
+[System.Security.Cryptography.RandomNumberGenerator]::Fill(
+    $secretBytes
+)
+
+$jwtSecret = [Convert]::ToBase64String(
+    $secretBytes
+)
+```
+
+Create `.env`:
+
+```powershell
+@"
+POSTGRES_DB=supportdesk_db
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=change_me
+POSTGRES_PORT=5433
+
+APP_PORT=8081
+
+JWT_SECRET=$jwtSecret
+JWT_EXPIRATION_SECONDS=3600
+
+RATE_LIMIT_ENABLED=true
+
+OPENAPI_ENABLED=false
+SWAGGER_UI_ENABLED=false
+"@ | Set-Content `
+    -LiteralPath ".\.env" `
+    -Encoding UTF8
+```
+
+The `.env` file contains secrets and must not be committed.
+
+### Start the Full Stack
+
+```powershell
+docker compose up -d --build
+```
+
+Check container state:
+
+```powershell
+docker compose ps
+```
+
+Expected containers:
+
+```text
+supportdesk-api
+supportdesk-db
+```
+
+The API is available at:
+
+```text
+http://localhost:8081
+```
+
+PostgreSQL is exposed at:
+
+```text
+localhost:5433
+```
+
+### Stop the Stack
+
+```powershell
+docker compose down
+```
+
+Stop the stack and remove its database volume:
+
+```powershell
+docker compose down -v
+```
+
+The second command permanently deletes local database data.
+
+## Local Development
 
 ### Prerequisites
 
@@ -322,39 +492,28 @@ Install:
 - Git
 - PowerShell or Windows Terminal
 
-The Maven Wrapper is included, so a separate Maven installation is not required.
+The Maven Wrapper is included. A separate Maven installation is not required.
 
-### Clone the Repository
+### Start Only PostgreSQL
 
-```powershell
-git clone https://github.com/Seyidli06/supportdesk.git
-cd supportdesk
+Create a `.env` containing at least:
+
+```dotenv
+POSTGRES_DB=supportdesk_db
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=change_me
+POSTGRES_PORT=5433
 ```
 
-### Start PostgreSQL
-
-Create the development database container:
+Start PostgreSQL:
 
 ```powershell
-docker run `
-    --name supportdesk-db `
-    --env POSTGRES_DB=supportdesk_db `
-    --env POSTGRES_USER=postgres `
-    --env POSTGRES_PASSWORD=12345 `
-    --publish 5433:5432 `
-    --detach `
-    postgres:16-alpine
+docker compose up -d postgres
 ```
 
-Start an existing stopped container:
+### Configure the Application
 
-```powershell
-docker start supportdesk-db
-```
-
-### Configure the Environment
-
-Generate a development JWT secret:
+Generate and set a development JWT secret:
 
 ```powershell
 $secretBytes = New-Object byte[] 64
@@ -368,27 +527,123 @@ $env:JWT_SECRET = [Convert]::ToBase64String(
 )
 ```
 
-Set the remaining environment variables in the same terminal:
+Set the remaining variables:
 
 ```powershell
 $env:DB_URL = "jdbc:postgresql://localhost:5433/supportdesk_db"
 $env:DB_USERNAME = "postgres"
-$env:DB_PASSWORD = "12345"
+$env:DB_PASSWORD = "change_me"
+
 $env:SERVER_PORT = "8081"
 $env:JWT_EXPIRATION_SECONDS = "3600"
+
+$env:RATE_LIMIT_ENABLED = "false"
 ```
 
-### Run the Application
+Run the application:
 
 ```powershell
-.\mvnw.cmd spring-boot:run
+cmd.exe /d /c ".\mvnw.cmd spring-boot:run"
 ```
 
-The examples in this README assume that the application runs on port `8081`.
+## Environment Variables
 
-### API Documentation
+### Core Application Variables
 
-Swagger UI:
+| Variable | Required | Default | Description |
+|---|---:|---|---|
+| `APP_NAME` | No | `supportdesk` | Spring application name |
+| `DB_URL` | Yes outside Compose app config | — | PostgreSQL JDBC URL |
+| `DB_USERNAME` | Yes | — | Database username |
+| `DB_PASSWORD` | Yes | — | Database password |
+| `SERVER_PORT` | No | `8080` | Internal HTTP port |
+| `JWT_SECRET` | Yes | — | Base64-encoded signing secret |
+| `JWT_EXPIRATION_SECONDS` | No | `3600` | JWT lifetime |
+| `FLYWAY_ENABLED` | No | `true` | Enable database migrations |
+| `JPA_SHOW_SQL` | No | `true` | Log SQL in development |
+| `JPA_FORMAT_SQL` | No | `true` | Format SQL logs |
+| `RATE_LIMIT_ENABLED` | No | `true` | Enable rate limiting |
+
+### Docker Compose Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `POSTGRES_DB` | `supportdesk_db` | PostgreSQL database |
+| `POSTGRES_USER` | `postgres` | PostgreSQL user |
+| `POSTGRES_PASSWORD` | Required | PostgreSQL password |
+| `POSTGRES_PORT` | `5433` | Host PostgreSQL port |
+| `APP_PORT` | `8081` | Host API port |
+| `OPENAPI_ENABLED` | `false` | Enable OpenAPI in production |
+| `SWAGGER_UI_ENABLED` | `false` | Enable Swagger UI in production |
+
+### Production Database Pool Variables
+
+| Variable | Default |
+|---|---:|
+| `DB_POOL_MAX_SIZE` | `10` |
+| `DB_POOL_MIN_IDLE` | `2` |
+| `DB_CONNECTION_TIMEOUT_MS` | `30000` |
+| `DB_VALIDATION_TIMEOUT_MS` | `5000` |
+| `DB_MAX_LIFETIME_MS` | `1800000` |
+
+### Default Rate-Limit Policies
+
+| Policy | Capacity | Refill |
+|---|---:|---|
+| Login | `5` | 5 tokens per minute |
+| Registration | `3` | 3 tokens per 10 minutes |
+| Authenticated read | `120` | 120 tokens per minute |
+| Authenticated write | `30` | 30 tokens per minute |
+| Admin endpoints | `60` | 60 tokens per minute |
+| Anonymous API requests | `60` | 60 tokens per minute |
+
+The policy values can be overridden through the `RATE_LIMIT_*` environment variables defined in `application.yaml`.
+
+## Health Checks
+
+The application exposes Spring Boot Actuator health endpoints.
+
+General health:
+
+```text
+GET /actuator/health
+```
+
+Liveness:
+
+```text
+GET /actuator/health/liveness
+```
+
+Readiness:
+
+```text
+GET /actuator/health/readiness
+```
+
+Docker uses the readiness endpoint for the application health check.
+
+Example:
+
+```powershell
+Invoke-RestMethod `
+    -Method Get `
+    -Uri "http://localhost:8081/actuator/health/readiness"
+```
+
+Expected response:
+
+```json
+{
+  "status": "UP"
+}
+```
+
+The readiness group includes application readiness state and database connectivity.
+
+## API Documentation
+
+In local development, Swagger UI is available at:
 
 ```text
 http://localhost:8081/swagger-ui/index.html
@@ -400,74 +655,30 @@ OpenAPI JSON:
 http://localhost:8081/v3/api-docs
 ```
 
-## Environment Variables
+OpenAPI and Swagger UI are disabled by default under the production profile.
 
-### Core Configuration
+To enable them in Docker:
 
-| Variable | Required | Default | Description |
-|---|---:|---|---|
-| `APP_NAME` | No | `supportdesk` | Spring application name |
-| `DB_URL` | Yes | — | PostgreSQL JDBC URL |
-| `DB_USERNAME` | Yes | — | Database username |
-| `DB_PASSWORD` | Yes | — | Database password |
-| `SERVER_PORT` | No | `8080` | HTTP server port |
-| `JWT_SECRET` | Yes | — | Base64-encoded JWT signing secret |
-| `JWT_EXPIRATION_SECONDS` | No | `3600` | JWT lifetime in seconds |
-| `JPA_SHOW_SQL` | No | `true` | Log generated SQL |
-| `JPA_FORMAT_SQL` | No | `true` | Format generated SQL |
-| `FLYWAY_ENABLED` | No | `true` | Enable Flyway migrations |
-| `RATE_LIMIT_ENABLED` | No | `true` | Enable request rate limiting |
+```dotenv
+OPENAPI_ENABLED=true
+SWAGGER_UI_ENABLED=true
+```
 
-### Rate-Limit Cache
+Restart the application after changing the values:
 
-| Variable | Default |
-|---|---|
-| `RATE_LIMIT_CACHE_MAXIMUM_SIZE` | `10000` |
-| `RATE_LIMIT_CACHE_EXPIRE_AFTER_ACCESS` | `30m` |
-
-### Rate-Limit Policies
-
-| Policy | Capacity | Refill Tokens | Refill Period |
-|---|---:|---:|---|
-| Login | 5 | 5 | 1 minute |
-| Registration | 3 | 3 | 10 minutes |
-| Authenticated read | 120 | 120 | 1 minute |
-| Authenticated write | 30 | 30 | 1 minute |
-| Admin endpoints | 60 | 60 | 1 minute |
-| Anonymous API requests | 60 | 60 | 1 minute |
-
-Available rate-limit environment variables:
-
-| Variable | Default |
-|---|---|
-| `RATE_LIMIT_LOGIN_CAPACITY` | `5` |
-| `RATE_LIMIT_LOGIN_REFILL_TOKENS` | `5` |
-| `RATE_LIMIT_LOGIN_REFILL_PERIOD` | `1m` |
-| `RATE_LIMIT_REGISTER_CAPACITY` | `3` |
-| `RATE_LIMIT_REGISTER_REFILL_TOKENS` | `3` |
-| `RATE_LIMIT_REGISTER_REFILL_PERIOD` | `10m` |
-| `RATE_LIMIT_READ_CAPACITY` | `120` |
-| `RATE_LIMIT_READ_REFILL_TOKENS` | `120` |
-| `RATE_LIMIT_READ_REFILL_PERIOD` | `1m` |
-| `RATE_LIMIT_WRITE_CAPACITY` | `30` |
-| `RATE_LIMIT_WRITE_REFILL_TOKENS` | `30` |
-| `RATE_LIMIT_WRITE_REFILL_PERIOD` | `1m` |
-| `RATE_LIMIT_ADMIN_CAPACITY` | `60` |
-| `RATE_LIMIT_ADMIN_REFILL_TOKENS` | `60` |
-| `RATE_LIMIT_ADMIN_REFILL_PERIOD` | `1m` |
-| `RATE_LIMIT_ANONYMOUS_CAPACITY` | `60` |
-| `RATE_LIMIT_ANONYMOUS_REFILL_TOKENS` | `60` |
-| `RATE_LIMIT_ANONYMOUS_REFILL_PERIOD` | `1m` |
+```powershell
+docker compose up -d --build app
+```
 
 ## Administrator Bootstrap
 
-Newly registered accounts receive the `USER` role.
+Newly registered users receive the `USER` role.
 
-For local development, register the initial administrator account:
+Register the initial administrator account:
 
 ```powershell
 $adminResponse = Invoke-RestMethod `
-    -Method POST `
+    -Method Post `
     -Uri "http://localhost:8081/api/v1/auth/register" `
     -ContentType "application/json" `
     -Body (@{
@@ -475,24 +686,25 @@ $adminResponse = Invoke-RestMethod `
         password = "Password123!"
         fullName = "SupportDesk Admin"
     } | ConvertTo-Json)
-```
 
-Read the generated user ID:
-
-```powershell
 $adminId = [string]$adminResponse.userId
-$adminId
 ```
 
-Assign the administrator role directly in the local database:
+Assign the first `ADMIN` role directly in the local database:
 
 ```powershell
-$adminRoleSql = @"
+$sql = @"
 DELETE FROM user_roles
 WHERE user_id = '$adminId';
 
-INSERT INTO user_roles (user_id, role)
-VALUES ('$adminId', 'ADMIN');
+INSERT INTO user_roles (
+    user_id,
+    role
+)
+VALUES (
+    '$adminId',
+    'ADMIN'
+);
 "@
 
 docker exec `
@@ -501,12 +713,25 @@ docker exec `
     -U postgres `
     -d supportdesk_db `
     -v ON_ERROR_STOP=1 `
-    -c $adminRoleSql
+    -c $sql
 ```
 
-Log in again after the role update to receive a new JWT containing the `ADMIN` role.
+Log in again after the role update:
 
-Direct database role updates are intended only for initial local bootstrap. Production environments should use a controlled provisioning process.
+```powershell
+$adminLogin = Invoke-RestMethod `
+    -Method Post `
+    -Uri "http://localhost:8081/api/v1/auth/login" `
+    -ContentType "application/json" `
+    -Body (@{
+        email = "admin@supportdesk.local"
+        password = "Password123!"
+    } | ConvertTo-Json)
+```
+
+The newly issued JWT contains the updated `ADMIN` role. JWTs issued before the role change are invalidated.
+
+Direct database changes are intended only for the initial local administrator bootstrap. Production environments should use a controlled provisioning process.
 
 ## Request Examples
 
@@ -543,19 +768,11 @@ Direct database role updates are intended only for initial local bootstrap. Prod
 
 ```json
 {
-  "agentId": "6ef13473-2034-4298-a296-c8d4cd98615d"
+  "agentId": "agent-user-id"
 }
 ```
 
-### Add a Comment
-
-```json
-{
-  "content": "We are investigating this issue."
-}
-```
-
-### Change Ticket Status
+### Change Status
 
 ```json
 {
@@ -563,223 +780,195 @@ Direct database role updates are intended only for initial local bootstrap. Prod
 }
 ```
 
-### Replace User Roles
+### Change Priority
 
 ```json
 {
-  "roles": [
-    "AGENT"
-  ]
+  "priority": "URGENT"
 }
 ```
 
-For protected endpoints, send the JWT in the authorization header:
+### Add Comment
 
-```text
+```json
+{
+  "content": "The issue is currently being investigated."
+}
+```
+
+Authenticated requests require:
+
+```http
 Authorization: Bearer <access-token>
 ```
 
-## Rate Limiting
+## Error Handling
 
-The application applies separate policies to:
+API errors use Problem Details-compatible JSON responses.
 
-- Login requests
-- Registration requests
-- Authenticated read requests
-- Authenticated write requests
-- Administrator endpoints
-- Anonymous API requests
-
-Successful and rejected API responses may include:
-
-```text
-X-RateLimit-Limit
-X-RateLimit-Remaining
-```
-
-Rejected responses additionally include:
-
-```text
-Retry-After
-Cache-Control: no-store
-```
-
-A rejected request returns HTTP `429 Too Many Requests`:
-
-```json
-{
-  "type": "about:blank",
-  "title": "Too Many Requests",
-  "status": 429,
-  "detail": "Request limit exceeded. Please try again later.",
-  "instance": "/api/v1/auth/login",
-  "code": "rate-limit-exceeded"
-}
-```
-
-Rate-limit buckets are currently stored in the application process using Caffeine. A distributed bucket store should be used when deploying multiple application instances.
-
-Client identification uses the authenticated user ID when available. Anonymous clients are identified by the servlet remote address.
-
-The application does not blindly trust client-provided `X-Forwarded-For` headers.
-
-## Error Responses
-
-Business, validation, authorization, and domain errors use Problem Details responses.
-
-Example validation response:
-
-```json
-{
-  "type": "https://supportdesk.com/errors/validation",
-  "title": "Bad Request",
-  "status": 400,
-  "detail": "Validation failed",
-  "errors": {
-    "email": "Email format is invalid"
-  },
-  "timestamp": "2026-01-01T12:00:00Z"
-}
-```
-
-Common HTTP statuses:
+Common status codes:
 
 | Status | Meaning |
 |---:|---|
-| `400` | Validation or malformed request |
-| `401` | Missing or invalid authentication |
-| `403` | Insufficient permissions |
-| `404` | Resource not found |
-| `409` | Email already exists |
-| `422` | Domain-rule violation |
-| `429` | Request limit exceeded |
+| `400` | Invalid request or domain rule violation |
+| `401` | Missing, invalid, expired, or stale JWT |
+| `403` | Authenticated user lacks permission |
+| `404` | Requested resource was not found |
+| `409` | Concurrent modification or persistence conflict |
+| `429` | Rate limit exceeded |
+| `500` | Unexpected server error |
+
+Optimistic-locking conflicts are returned as HTTP `409 Conflict` rather than generic server errors.
 
 ## Testing
 
-Run the complete test suite:
+### Full Test Suite
+
+Run all unit and integration tests:
 
 ```powershell
-.\mvnw.cmd clean test
+cmd.exe /d /c ".\mvnw.cmd clean verify"
 ```
 
-Current test result:
+### Production Smoke Test
+
+Start the full Docker stack:
+
+```powershell
+docker compose up -d --build
+```
+
+Run the PowerShell smoke test:
+
+```powershell
+powershell.exe `
+    -NoProfile `
+    -ExecutionPolicy Bypass `
+    -File ".\smoke-test.ps1"
+```
+
+The smoke test verifies:
+
+- Application readiness
+- User registration and authentication
+- Ticket creation and retrieval
+- Ticket filtering and visibility
+- User and agent comments
+- Authorization restrictions
+- Initial administrator bootstrap
+- Role management
+- Stale-token behavior after role changes
+- Agent assignment
+- Ticket status changes
+- Ticket priority changes
+- Ticket event history
+- Final persisted ticket state
+
+Successful completion prints:
 
 ```text
-Tests run: 88
-Failures: 0
-Errors: 0
-Skipped: 0
+ALL SUPPORTDESK SMOKE TESTS PASSED
 ```
 
-The test suite includes:
+## Continuous Integration
 
-- Domain unit tests
-- Application-service unit tests
-- Repository integration tests
-- Controller integration tests
-- Authentication tests
-- User-management tests
-- Rate-limit unit tests
-- Spring Security rate-limit integration tests
-- Application-context tests
+The GitHub Actions workflow runs on:
 
-## Smoke Tests
+- Pushes to `main`
+- Pull requests targeting `main`
+- Manual workflow dispatch
 
-Start the application on port `8081` before running smoke tests.
+The CI job performs:
 
-### Full Application Smoke Test
+1. Repository checkout
+2. Java 21 setup
+3. PostgreSQL 16 service startup
+4. Full Maven `clean verify`
+5. Production Docker image build
+
+Workflow file:
+
+```text
+.github/workflows/ci.yml
+```
+
+## Database Migrations
+
+Flyway migrations are stored under:
+
+```text
+src/main/resources/db/migration
+```
+
+Current migrations:
+
+| Migration | Purpose |
+|---|---|
+| `V1__init_schema.sql` | Initial users, roles, tickets, and comments schema |
+| `V2__harden_constraints_and_indexes.sql` | Database constraints and indexes |
+| `V3__add_user_token_version.sql` | JWT token-version support |
+| `V4__add_ticket_event_history.sql` | Persistent ticket audit history |
+
+Applied migrations must never be edited. New schema changes must be added as new versioned migration files.
+
+## Production Notes
+
+The production profile provides:
+
+- Disabled Spring banner
+- HikariCP pool configuration
+- SQL logging disabled
+- UTC JVM and Hibernate time zone
+- Graceful application shutdown
+- Forwarded-header support
+- Restricted Actuator exposure
+- Hidden health details
+- Liveness and readiness probes
+- OpenAPI disabled by default
+- Swagger UI disabled by default
+
+The runtime Docker image:
+
+- Uses Java 21 JRE
+- Runs as a non-root `supportdesk` user
+- Exposes internal port `8080`
+- Uses a readiness health check
+- Supports graceful container shutdown
+
+Do not commit:
+
+- `.env`
+- Production database passwords
+- JWT secrets
+- Access tokens
+- Generated credentials
+
+## Release
+
+Current stable tag:
+
+```text
+v1.0.0
+```
+
+Check out the release:
 
 ```powershell
-.\smoke-test.ps1
+git fetch --tags
+
+git checkout "v1.0.0"
 ```
 
-The full smoke test validates:
-
-- User registration
-- Authentication
-- JWT creation
-- Ticket creation
-- Ticket listing
-- Ticket details
-- Ticket comments
-- Authorization rules
-- User-role management
-- Agent assignment
-- Ticket-status transitions
-
-### Rate-Limit Smoke Test
-
-The rate-limit smoke test expects a login capacity of two requests.
-
-Stop the application and restart it with:
+Return to the main branch:
 
 ```powershell
-$env:RATE_LIMIT_ENABLED = "true"
-$env:RATE_LIMIT_LOGIN_CAPACITY = "2"
-$env:RATE_LIMIT_LOGIN_REFILL_TOKENS = "2"
-$env:RATE_LIMIT_LOGIN_REFILL_PERIOD = "1h"
+git checkout main
 
-.\mvnw.cmd spring-boot:run
+git pull --ff-only origin main
 ```
 
-Run:
+Release tag:
 
-```powershell
-.\rate-limit-smoke-test.ps1
+```text
+https://github.com/Seyidli06/supportdesk/releases/tag/v1.0.0
 ```
-
-Restart the application before repeating the rate-limit smoke test because the test bucket will already be exhausted.
-
-## Database Model
-
-Flyway creates the following tables.
-
-### `users`
-
-Stores account information:
-
-- UUID identifier
-- Unique email
-- BCrypt password hash
-- Full name
-- Creation timestamp
-
-### `user_roles`
-
-Stores one or more roles per user.
-
-The combination of `user_id` and `role` is unique.
-
-### `tickets`
-
-Stores ticket state:
-
-- Title
-- Description
-- Status
-- Priority
-- Requester
-- Assigned agent
-- Optimistic-lock version
-- Creation timestamp
-- Update timestamp
-- Resolution timestamp
-- Closure timestamp
-- SLA due timestamp
-
-### `ticket_comments`
-
-Stores ticket comments:
-
-- Comment ID
-- Ticket ID
-- Author ID
-- Content
-- Creation timestamp
-
-Indexes are created for:
-
-- Ticket requester
-- Assigned agent
-- Ticket status
-- Ticket-comment ticket reference
